@@ -65,6 +65,7 @@ namespace Configs
         auto query = QUrlQuery(url.query());
         const auto transport = query.queryItemValue("type");
         const auto security = query.queryItemValue("security");
+        const bool preferXray = dataManager->settingsRepo->core_backend != "tachyon";
         // sing-box's http transport speaks the raw HTTP header only in plaintext; TLS (which a bare sni also enables) turns it into h2
         const bool rawHttpOverTls = (transport.isEmpty() || transport == "tcp" || transport == "raw")
                                     && query.queryItemValue("headerType") == "http"
@@ -72,14 +73,14 @@ namespace Configs
                                         || !query.queryItemValue("sni").isEmpty()
                                         || !query.queryItemValue("peer").isEmpty());
 
-        if (dataManager->settingsRepo->xray_vless_preference == Xray::AllVLESS
+        if ((preferXray && dataManager->settingsRepo->xray_vless_preference == Xray::AllVLESS)
             || rawHttpOverTls
             || transport == "xhttp"
             || query.hasQueryItem("fm")
             || query.hasQueryItem("finalmask")
             // sing-box has no counterpart to verifyPeerCertByName
             || query.hasQueryItem("vcn")
-            || (security == "reality" && dataManager->settingsRepo->xray_vless_preference == Xray::XhttpAndReality)
+            || (preferXray && security == "reality" && dataManager->settingsRepo->xray_vless_preference == Xray::XhttpAndReality)
             || (query.queryItemValue("encryption") != "none" && query.queryItemValue("encryption") != "")
             || query.queryItemValue("extra") != "") return true;
         return false;

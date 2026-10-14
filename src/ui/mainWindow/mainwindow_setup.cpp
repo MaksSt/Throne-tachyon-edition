@@ -314,7 +314,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     }
 
     software_name = "Throne";
-    software_core_name = "sing-box";
+    software_core_name = Configs::dataManager->settingsRepo->core_backend == "tachyon" ? "tachyon-core" : "sing-box";
     if (auto dashDir = QDir("dashboard"); !dashDir.exists() && QDir().mkdir("dashboard")) {
         if (auto dashFile = QFile(":/Throne/dashboard-notice.html"); dashFile.exists() && dashFile.open(QIODevice::ReadOnly))
         {

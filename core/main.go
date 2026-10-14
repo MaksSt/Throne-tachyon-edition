@@ -149,6 +149,9 @@ func main() {
 		}
 	}()
 	fmt.Println("sing-box:", C.Version)
+	if os.Getenv("THRONE_CORE_BACKEND") == "tachyon" {
+		fmt.Println("Data plane: tachyon-core (external CLI backend)")
+	}
 	fmt.Println("Xray-core:", core.Version())
 	fmt.Println()
 	runtimeDebug.SetMemoryLimit(memoryLimit)

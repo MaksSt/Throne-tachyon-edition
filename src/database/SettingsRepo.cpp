@@ -127,6 +127,8 @@ namespace Configs {
         };
 
         stringMap = {
+            {"core_backend", &core_backend},
+            {"tachyon_core_path", &tachyon_core_path},
             {"user_agent2",                &user_agent},
             {"test_url",                   &test_latency_url},
             {"direct_test_url",            &direct_test_url},

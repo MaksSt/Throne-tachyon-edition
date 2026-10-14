@@ -50,6 +50,25 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     ui->setupUi(this);
     ADD_ASTERISK(this);
 
+    ui->core_backend->addItem(tr("sing-box (built-in)"), "sing-box");
+    ui->core_backend->addItem(tr("tachyon-core (experimental)"), "tachyon");
+    ui->core_backend->setCurrentIndex(qMax(0, ui->core_backend->findData(Configs::dataManager->settingsRepo->core_backend)));
+    ui->tachyon_core_path->setText(Configs::dataManager->settingsRepo->tachyon_core_path);
+    const auto updateBackendFields = [this] {
+        const bool tachyon = ui->core_backend->currentData().toString() == "tachyon";
+        ui->tachyon_core_path->setEnabled(tachyon);
+        ui->tachyon_browse->setEnabled(tachyon);
+        ui->tachyon_notice->setVisible(tachyon);
+        ui->groupBox_core->setEnabled(!tachyon);
+        ui->xray_core_box->setEnabled(!tachyon);
+    };
+    updateBackendFields();
+    connect(ui->core_backend, &QComboBox::currentIndexChanged, this, [updateBackendFields](int) { updateBackendFields(); });
+    connect(ui->tachyon_browse, &QPushButton::clicked, this, [this] {
+        const auto path = QFileDialog::getOpenFileName(this, tr("Select tachyon-core executable"), ui->tachyon_core_path->text());
+        if (!path.isEmpty()) ui->tachyon_core_path->setText(path);
+    });
+
     ui->inbound_socks_port_l->setText(ui->inbound_socks_port_l->text().replace("Socks", "Mixed (SOCKS+HTTP)"));
     ui->log_level->addItems(QString("trace debug info warn error fatal panic").split(" "));
     ui->xray_loglevel->addItems(Configs::Xray::XrayLogLevels);
@@ -375,6 +394,20 @@ void DialogBasicSettings::applyRegexHighlighting() {
 }
 
 void DialogBasicSettings::accept() {
+    const auto backend = ui->core_backend->currentData().toString();
+    const auto tachyonPath = ui->tachyon_core_path->text().trimmed();
+    if (backend == "tachyon" && ui->kill_switch->isChecked()) {
+        QMessageBox::warning(this, tr("Proxy core"), tr("Tachyon does not support the kill switch. Disable it in Security or select built-in sing-box."));
+        return;
+    }
+    if (backend == "tachyon" && !tachyonPath.isEmpty() && !QFileInfo(tachyonPath).isFile()) {
+        QMessageBox::warning(this, tr("Proxy core"), tr("The tachyon-core executable does not exist."));
+        return;
+    }
+    if (backend != Configs::dataManager->settingsRepo->core_backend ||
+        tachyonPath != Configs::dataManager->settingsRepo->tachyon_core_path) CACHE.needRestart = true;
+    Configs::dataManager->settingsRepo->core_backend = backend;
+    Configs::dataManager->settingsRepo->tachyon_core_path = tachyonPath;
     bool needChoosePort = false;
 
     D_SAVE_STRING(inbound_address)

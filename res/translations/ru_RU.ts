@@ -355,6 +355,50 @@ It stays a preference, not a lock: if that profile stops working the selector st
 <context>
     <name>DialogBasicSettings</name>
     <message>
+        <source>Proxy core (restart required)</source>
+        <translation>Прокси-ядро (нужен перезапуск)</translation>
+    </message>
+    <message>
+        <source>tachyon-core executable</source>
+        <translation>Исполняемый файл tachyon-core</translation>
+    </message>
+    <message>
+        <source>Bundled tachyon-core (leave empty)</source>
+        <translation>Встроенный tachyon-core (оставьте пустым)</translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation>Обзор...</translation>
+    </message>
+    <message>
+        <source>sing-box (built-in)</source>
+        <translation>sing-box (встроенный)</translation>
+    </message>
+    <message>
+        <source>tachyon-core (experimental)</source>
+        <translation>tachyon-core (экспериментальный)</translation>
+    </message>
+    <message>
+        <source>Select tachyon-core executable</source>
+        <translation>Выберите исполняемый файл tachyon-core</translation>
+    </message>
+    <message>
+        <source>Proxy core</source>
+        <translation>Прокси-ядро</translation>
+    </message>
+    <message>
+        <source>The tachyon-core executable does not exist.</source>
+        <translation>Исполняемый файл tachyon-core не найден.</translation>
+    </message>
+    <message>
+        <source>Tachyon does not support the kill switch. Disable it in Security or select built-in sing-box.</source>
+        <translation>Tachyon не поддерживает Kill Switch. Отключите его на вкладке Безопасность или выберите встроенный sing-box.</translation>
+    </message>
+    <message>
+        <source>Tachyon v0.1.1: experimental SOCKS/HTTP and system proxy support. TUN, Xray sidecars, Extra Core, Throne auto-selectors, kill switch, dashboards, IP tests and per-profile traffic history are unavailable. Live connections, URL and speed tests use Tachyon. Switch to built-in sing-box for the other features.</source>
+        <translation>Tachyon v0.1.1: экспериментальная поддержка SOCKS/HTTP и системного прокси. TUN, Xray, Extra Core, автовыбор Throne, Kill Switch, веб-панели, тесты IP и история трафика профилей недоступны. Соединения, тесты URL и скорости используют Tachyon. Для остальных функций выберите встроенный sing-box.</translation>
+    </message>
+    <message>
         <source>Basic Settings</source>
         <translation>Основные настройки</translation>
     </message>

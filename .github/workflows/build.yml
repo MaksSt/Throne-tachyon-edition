@@ -63,7 +63,7 @@ jobs:
         uses: actions/cache@v6.1.0
         with:
           path: artifacts.tgz
-          key: CommonCache-${{ matrix.cross_os }}-${{ matrix.cross_arch }}-${{ hashFiles('script/build_go.sh', 'core/**') }}-${{ matrix.go_version }}
+          key: CommonCache-${{ matrix.cross_os }}-${{ matrix.cross_arch }}-${{ hashFiles('script/build_go.sh', 'script/download_tachyon.py', 'core/**') }}-${{ matrix.go_version }}
       - name: Install Golang
         if: steps.cache-common.outputs.cache-hit != 'true'
         uses: actions/setup-go@v7.0.0
@@ -116,7 +116,9 @@ jobs:
           GOOS=${{ matrix.cross_os }} GOARCH=${{ matrix.cross_arch }} ./script/build_go.sh
       - name: Tar files
         if: steps.cache-common.outputs.cache-hit != 'true'
-        run: tar czf artifacts.tgz ./deployment
+        run: |
+          python3 script/download_tachyon.py --os '${{ matrix.cross_os }}' --arch '${{ matrix.cross_arch }}' --dest "$DEST"
+          tar czf artifacts.tgz ./deployment
       - name: Uploading Artifact
         uses: actions/upload-artifact@v7.0.1
         with:
@@ -465,7 +467,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - publish
-    if: github.event.inputs.publish == 'r'
+    if: github.repository == 'throneproj/Throne' && github.event.inputs.publish == 'r'
     permissions:
       contents: read
     steps:
@@ -497,7 +499,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - publish
-    if: github.event.inputs.publish == 'r'
+    if: github.repository == 'throneproj/Throne' && github.event.inputs.publish == 'r'
     permissions:
       contents: read
       pages: write

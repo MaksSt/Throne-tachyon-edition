@@ -1,6 +1,7 @@
 package process
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -18,6 +19,9 @@ type Process struct {
 	cleanupPath string
 	run         running
 	stopped     atomic.Bool
+	done        chan struct{}
+	waitErr     error
+	managed     bool
 }
 
 type running interface {
@@ -29,27 +33,38 @@ func NewProcess(path string, args []string, noOut bool) *Process {
 	return &Process{path: path, args: args, noOut: noOut}
 }
 
+// Managed children cannot outlive the RPC bridge on Windows and Linux.
+func NewManagedProcess(path string, args []string, noOut bool) *Process {
+	return &Process{path: path, args: args, noOut: noOut, managed: true}
+}
+
 // The path is removed recursively when the process stops, exits, or fails to start; "" means nothing to clean up.
 func (p *Process) SetCleanupPath(path string) {
 	p.cleanupPath = path
 }
 
 func (p *Process) Start() error {
-	run, err := startChild(p.path, p.args, p.noOut)
+	start := startChild
+	if p.managed {
+		start = startManagedChild
+	}
+	run, err := start(p.path, p.args, p.noOut)
 	if err != nil {
 		p.cleanup()
 		return err
 	}
 	p.run = run
+	p.done = make(chan struct{})
 	p.stopped.Store(false)
 
 	go func() {
 		fmt.Println(p.path, ":", "process started, waiting for it to end")
-		_ = p.run.Wait()
+		p.waitErr = p.run.Wait()
 		if !p.stopped.Load() {
 			fmt.Println("Extra process exited unexpectedly")
 		}
 		p.cleanup()
+		close(p.done)
 	}()
 	return nil
 }
@@ -58,8 +73,35 @@ func (p *Process) Stop() {
 	p.stopped.Store(true)
 	if p.run != nil {
 		_ = p.run.Kill()
+		if p.managed {
+			<-p.done
+		}
 	}
 	p.cleanup()
+}
+
+// Done closes after the child has exited and its private config was removed.
+func (p *Process) Done() <-chan struct{} { return p.done }
+
+// Err may only be read after Done has closed.
+func (p *Process) Err() error { return p.waitErr }
+
+// RunCommand uses the same privilege drop and environment filtering as sidecars.
+func RunCommand(ctx context.Context, path string, args []string) error {
+	run, err := startManagedChild(path, args, false)
+	if err != nil {
+		return err
+	}
+	done := make(chan error, 1)
+	go func() { done <- run.Wait() }()
+	select {
+	case err = <-done:
+		return err
+	case <-ctx.Done():
+		_ = run.Kill()
+		<-done
+		return ctx.Err()
+	}
 }
 
 func newCmd(path string, args []string, noOut bool) *exec.Cmd {

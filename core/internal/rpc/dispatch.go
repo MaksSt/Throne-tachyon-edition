@@ -29,6 +29,7 @@ var debugLog bool
 func Serve(conn net.Conn, debug bool) {
 	debugLog = debug
 	defer conn.Close()
+	defer stopTachyonOnDisconnect()
 
 	var writeMu sync.Mutex
 
@@ -150,6 +151,9 @@ var handlers = map[string]handlerFn{
 }
 
 func dispatch(methodName string, payload []byte) ([]byte, error) {
+	if tachyonSelected() {
+		return tachyonDispatch(methodName, payload)
+	}
 	h, found := handlers[methodName]
 	if !found {
 		return nil, fmt.Errorf("unknown method: %s", methodName)

@@ -1097,6 +1097,32 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>
+        <widget class="QGroupBox" name="backend_box">
+         <property name="title"><string>Proxy core (restart required)</string></property>
+         <layout class="QFormLayout" name="backend_layout">
+          <item row="0" column="0"><widget class="QLabel" name="core_backend_label">
+           <property name="text"><string>Core</string></property>
+           <property name="buddy"><cstring>core_backend</cstring></property>
+          </widget></item>
+          <item row="0" column="1"><widget class="QComboBox" name="core_backend"/></item>
+          <item row="1" column="0"><widget class="QLabel" name="tachyon_path_label">
+           <property name="text"><string>tachyon-core executable</string></property>
+           <property name="buddy"><cstring>tachyon_core_path</cstring></property>
+          </widget></item>
+          <item row="1" column="1"><layout class="QHBoxLayout" name="tachyon_path_layout">
+           <item><widget class="QLineEdit" name="tachyon_core_path">
+            <property name="placeholderText"><string>Bundled tachyon-core (leave empty)</string></property>
+           </widget></item>
+           <item><widget class="QPushButton" name="tachyon_browse"><property name="text"><string>Browse...</string></property></widget></item>
+          </layout></item>
+          <item row="2" column="0" colspan="2"><widget class="QLabel" name="tachyon_notice">
+           <property name="wordWrap"><bool>true</bool></property>
+           <property name="text"><string>Tachyon v0.1.1: experimental SOCKS/HTTP and system proxy support. TUN, Xray sidecars, Extra Core, Throne auto-selectors, kill switch, dashboards, IP tests and per-profile traffic history are unavailable. Live connections, URL and speed tests use Tachyon. Switch to built-in sing-box for the other features.</string></property>
+          </widget></item>
+         </layout>
+        </widget>
+       </item>
+       <item>
         <widget class="QGroupBox" name="groupBox_core">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Maximum">

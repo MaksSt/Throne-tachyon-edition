@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -75,6 +76,29 @@ func countryTest(ctx context.Context, dialer func(ctx context.Context, network s
 	res.ServerCountry = srv.Country
 	res.Latency = int32(srv.Latency.Milliseconds())
 	return nil
+}
+
+// External data planes provide a dialer while retaining Throne's measurement,
+// progress reporting, cancellation and speed/traffic result formats.
+func SpeedTestWithDialer(ctx context.Context, dialer func(context.Context, string, string) (net.Conn, error), tag string,
+	testDl, testUl, simpleDL bool, address string, timeout time.Duration, countryOnly bool) *SpeedTestResult {
+	res := &SpeedTestResult{Tag: tag}
+	var err error
+	if countryOnly {
+		err = countryTest(ctx, dialer, res)
+	} else if simpleDL {
+		err = simpleDownloadTest(ctx, dialer, res, address, timeout)
+	} else {
+		err = speedTestWithDialer(ctx, dialer, res, testDl, testUl, timeout)
+	}
+	if err != nil {
+		res.Error = err
+		res.Cancelled = errors.Is(err, context.Canceled)
+	}
+	if countryOnly {
+		CountryResults.AddResult(res)
+	}
+	return res
 }
 
 func BatchSpeedTest(ctx context.Context, i Box, outboundTags []string, testDl, testUl bool, simpleDL bool, simpleAddress string, timeout time.Duration, countryOnly bool, countryConcurrency int32) []*SpeedTestResult {
@@ -161,6 +185,11 @@ func simpleDownloadTest(ctx context.Context, dialer func(ctx context.Context, ne
 	if err != nil {
 		return err
 	}
+	// The public Cloudflare endpoint requires its site Referer for large
+	// downloads. Small requests can succeed without it and hide the problem.
+	if strings.EqualFold(req.URL.Hostname(), "speed.cloudflare.com") && req.URL.Path == "/__down" {
+		req.Header.Set("Referer", "https://speed.cloudflare.com/")
+	}
 
 	done := make(chan struct{})
 	// Written by the download goroutine while the sampling loop reads them.
@@ -179,9 +208,19 @@ func simpleDownloadTest(ctx context.Context, dialer func(ctx context.Context, ne
 			return
 		}
 		defer resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			downloadErr = fmt.Errorf("download server returned HTTP %d", resp.StatusCode)
+			return
+		}
 		latencyMs.Store(int32(time.Since(reqStart).Milliseconds()))
 		startNs.Store(time.Now().UnixNano())
-		_, _ = io.Copy(&counted, resp.Body)
+		_, downloadErr = io.Copy(&counted, resp.Body)
+		// The configured speed-test window may end before a large file does.
+		// A timed sample with actual payload is valid; a failed request, broken
+		// body or explicitly cancelled test must still be reported as such.
+		if errors.Is(downloadErr, context.DeadlineExceeded) && counted.n.Load() > 0 && ctx.Err() == nil {
+			downloadErr = nil
+		}
 	}()
 
 	ticker := time.NewTicker(speedtestSampleInterval)

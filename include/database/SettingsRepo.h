@@ -284,6 +284,8 @@ namespace Configs {
         QString hotkey_toggle_tun = "";
 
         // Core
+        QString core_backend = "sing-box";
+        QString tachyon_core_path = "";
         int core_box_clash_api = -9090;
         QString core_box_clash_listen_addr = "127.0.0.1";
         QString core_box_clash_api_secret = "";

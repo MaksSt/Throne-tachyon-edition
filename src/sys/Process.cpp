@@ -4,6 +4,7 @@
 
 #include <QTimer>
 #include <QDir>
+#include <QFileInfo>
 #include <QApplication>
 
 
@@ -108,6 +109,16 @@ namespace Configs_sys {
 
         auto env = QProcessEnvironment::systemEnvironment();
         env.insert("THRONE_CORE_SOCKET", m_socketName);
+        env.insert("THRONE_CORE_BACKEND", Configs::dataManager->settingsRepo->core_backend);
+        auto tachyonPath = Configs::dataManager->settingsRepo->tachyon_core_path;
+        if (tachyonPath.isEmpty()) {
+#ifdef Q_OS_WIN
+            tachyonPath = QDir(QCoreApplication::applicationDirPath()).filePath("tachyon-core.exe");
+#else
+            tachyonPath = QDir(QCoreApplication::applicationDirPath()).filePath("tachyon-core");
+#endif
+        }
+        env.insert("THRONE_TACHYON_PATH", QFileInfo(tachyonPath).absoluteFilePath());
         // Turns an unrecovered Go panic into a real abort, so all goroutine stacks are dumped and WER captures the core too.
         env.insert("GOTRACEBACK", "crash");
         if (m_debugMode) env.insert("THRONE_CORE_DEBUG", "1");
