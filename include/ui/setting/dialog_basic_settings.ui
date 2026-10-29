@@ -44,6 +44,39 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
+        <widget class="QGroupBox" name="proxy_core_box">
+         <property name="title"><string>Proxy core</string></property>
+         <layout class="QFormLayout" name="proxy_core_layout">
+          <item row="0" column="0"><widget class="QLabel" name="proxy_core_label">
+           <property name="text"><string>Core</string></property>
+           <property name="buddy"><cstring>proxy_core</cstring></property>
+          </widget></item>
+          <item row="0" column="1"><widget class="QComboBox" name="proxy_core"/></item>
+          <item row="1" column="0"><widget class="QLabel" name="tachyon_core_status_label">
+           <property name="text"><string>Tachyon</string></property>
+           <property name="buddy"><cstring>tachyon_core_update</cstring></property>
+          </widget></item>
+          <item row="1" column="1"><layout class="QHBoxLayout" name="tachyon_core_update_layout">
+           <item><widget class="QLabel" name="tachyon_core_status">
+            <property name="text"><string>Not installed</string></property>
+            <property name="wordWrap"><bool>true</bool></property>
+            <property name="textFormat"><enum>Qt::PlainText</enum></property>
+           </widget></item>
+           <item><widget class="QPushButton" name="tachyon_core_update">
+            <property name="text"><string>Install / Update from GitHub</string></property>
+           </widget></item>
+          </layout></item>
+          <item row="2" column="1"><widget class="QCheckBox" name="tachyon_auto_update">
+           <property name="text"><string>Check for Tachyon updates automatically (daily)</string></property>
+          </widget></item>
+          <item row="3" column="1"><widget class="QLabel" name="proxy_core_help">
+           <property name="text"><string>Throne installs the latest stable Tachyon release automatically. No version or executable path is required. Updates apply after reconnecting. Windows TUN depends on support in the Tachyon build.</string></property>
+           <property name="wordWrap"><bool>true</bool></property>
+          </widget></item>
+         </layout>
+        </widget>
+       </item>
+       <item>
         <widget class="QGroupBox" name="groupBox_5">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">

@@ -11,6 +11,7 @@
 #include "include/global/Validation.hpp"
 #include "include/database/entities/Group.h"
 #include "include/engine/services/AssetUpdates.h"
+#include "include/global/TachyonCore.hpp"
 #include "include/engine/services/BackupArchive.h"
 #include "include/ui/utils/UiMode.h"
 #include "include/ui/utils/ValidationForm.h"
@@ -37,6 +38,8 @@
 #include <QSslSocket>
 #include <QStandardItemModel>
 #include <QFile>
+#include <QFileInfo>
+#include "include/ui/utils/NativeFileDialog.h"
 #include <QFormLayout>
 #include <QLineEdit>
 #include <QLocale>
@@ -231,6 +234,35 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     form = new Validation::Form(this);
     form->attachStatus(ui->buttonBox);
     ADD_ASTERISK(this);
+
+    ui->proxy_core->addItem(QStringLiteral("sing-box"), QStringLiteral("sing-box"));
+    ui->proxy_core->addItem(QStringLiteral("tachyon-core"), QStringLiteral("tachyon"));
+    ui->proxy_core->setCurrentIndex(qMax(0, ui->proxy_core->findData(Configs::dataManager->settingsRepo->proxy_core)));
+    ui->tachyon_auto_update->setChecked(Configs::dataManager->settingsRepo->tachyon_auto_update);
+    const auto installedCore = Throne::TachyonCore::Installed();
+    ui->tachyon_core_status->setText(installedCore.path.isEmpty() ? tr("Not installed; downloaded on first use") : tr("Installed: %1").arg(installedCore.version));
+    const auto syncCore = [this] {
+        const bool tachyon = ui->proxy_core->currentData().toString() == "tachyon";
+        ui->tachyon_core_update->setEnabled(tachyon);
+        ui->tachyon_auto_update->setEnabled(tachyon);
+    };
+    connect(ui->proxy_core, &QComboBox::currentIndexChanged, this, syncCore);
+    connect(ui->tachyon_core_update, &QPushButton::clicked, this, [this] {
+        ui->tachyon_core_update->setEnabled(false);
+        ui->tachyon_core_status->setText(tr("Checking GitHub and installing the latest release..."));
+        const QPointer<DialogBasicSettings> self = this;
+        const bool started = Throne::TachyonCore::Update([self](const Throne::TachyonCore::Status &status) {
+            if (!self) return;
+            self->ui->tachyon_core_update->setEnabled(self->ui->proxy_core->currentData().toString() == "tachyon");
+            if (!status.error.isEmpty()) self->ui->tachyon_core_status->setText(self->tr("Update failed: %1").arg(status.error));
+            else self->ui->tachyon_core_status->setText(status.changed ? self->tr("Installed: %1. Reconnect to use it.").arg(status.version) : self->tr("Up to date: %1").arg(status.version));
+        });
+        if (!started) {
+            ui->tachyon_core_status->setText(tr("A Tachyon update is already running. Try again when it finishes."));
+            ui->tachyon_core_update->setEnabled(true);
+        }
+    });
+    syncCore();
 
     ui->inbound_socks_port_l->setText(ui->inbound_socks_port_l->text().replace("Socks", "Mixed (SOCKS+HTTP)"));
     ui->log_level->addItems(QString("trace debug info warn error fatal panic").split(" "));
@@ -670,6 +702,8 @@ void DialogBasicSettings::accept() {
     Configs::dataManager->settingsRepo->max_log_line = ui->max_log_line->text().trimmed().toInt();
     if (oldMaxLogLines != Configs::dataManager->settingsRepo->max_log_line) CACHE.updateMaxLogLines = true;
     Configs::dataManager->settingsRepo->log_level = ui->log_level->currentText().trimmed();
+    Configs::dataManager->settingsRepo->proxy_core = ui->proxy_core->currentData().toString();
+    Configs::dataManager->settingsRepo->tachyon_auto_update = ui->tachyon_auto_update->isChecked();
     Configs::dataManager->settingsRepo->xray_log_level = ui->xray_loglevel->currentText().trimmed();
     Configs::dataManager->settingsRepo->log_enable_include = ui->enable_log_include->isChecked();
     Configs::dataManager->settingsRepo->log_enable_exclude = ui->enable_log_exclude->isChecked();

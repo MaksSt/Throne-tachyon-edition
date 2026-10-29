@@ -1,12 +1,14 @@
 package rpc
 
 import (
+	"context"
 	"log"
 	"time"
 
 	"ThroneCore/internal/boxbox"
 	"ThroneCore/internal/boxmain"
 	"ThroneCore/internal/probe"
+	"ThroneCore/internal/tachyon"
 	"ThroneCore/internal/xray"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -14,15 +16,35 @@ import (
 )
 
 type testEnv struct {
-	box   *boxbox.Box
-	tags  []string
-	close func()
+	box    probe.Box
+	legacy *boxbox.Box
+	tags   []string
+	close  func()
 }
 
 // `current` measures the running instance instead of building one, and owns nothing.
 func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConfigs []string,
 	coreConfig string, tags []string, useDefaultOutbound bool,
 	xrayDNSStrategy string) (*testEnv, error) {
+	if current {
+		if native := currentNative(); native != nil {
+			outTags := []string{"proxy"}
+			if _, ok := native.manager.Outbound("proxy"); !ok || useDefaultOutbound {
+				outTags = []string{native.engine.DefaultTag}
+			}
+			return &testEnv{box: native, tags: outTags, close: func() {}}, nil
+		}
+	} else if tachyon.Selected([]byte(coreConfig)) {
+		native, err := newNativeBox(context.Background(), coreConfig)
+		if err != nil {
+			return nil, err
+		}
+		outTags := tags
+		if useDefaultOutbound {
+			outTags = []string{native.engine.DefaultTag}
+		}
+		return &testEnv{box: native, tags: outTags, close: native.engine.Stop}, nil
+	}
 
 	// Owned here, not by the caller: this builds the probe box the Xray instances below resolve through.
 	var boxCtx boxContextHolder
@@ -42,7 +64,7 @@ func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConf
 		if useDefaultOutbound {
 			outTags = []string{box.Outbound().Default().Tag()}
 		}
-		return &testEnv{box: box, tags: outTags, close: func() {}}, nil
+		return &testEnv{box: box, legacy: box, tags: outTags, close: func() {}}, nil
 	}
 
 	var cleanups []func()
@@ -94,7 +116,7 @@ func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConf
 	if useDefaultOutbound {
 		outTags = []string{box.Outbound().Default().Tag()}
 	}
-	return &testEnv{box: box, tags: outTags, close: unwind}, nil
+	return &testEnv{box: box, legacy: box, tags: outTags, close: unwind}, nil
 }
 
 // A probe box has no tun to mark its sockets, so the running Tun's auto_redirect nftables rules would capture them.

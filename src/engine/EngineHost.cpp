@@ -21,6 +21,7 @@
 #include "include/engine/connection/ConnectionManager.h"
 #include "include/engine/headless/HeadlessPolicy.h"
 #include "include/engine/services/AssetUpdates.h"
+#include "include/global/TachyonCore.hpp"
 #include "include/engine/services/Dashboard.h"
 #include "include/engine/services/ProfileService.h"
 #include "include/engine/services/StatsService.h"
@@ -545,6 +546,13 @@ namespace Engine {
 
     void EngineHost::registerPeriodicJobs() {
         auto* runner = Throne::PeriodicRunner::instance();
+        runner->Add({
+            QStringLiteral("Tachyon core"),
+            [] { const auto &s = Configs::dataManager->settingsRepo; return s->proxy_core == "tachyon" && s->tachyon_auto_update ? 24 * 60 : 0; },
+            [] { return Configs::dataManager->settingsRepo->tachyon_update_last; },
+            [](qint64 t) { Configs::dataManager->settingsRepo->tachyon_update_last = static_cast<int>(t); Configs::dataManager->settingsRepo->Save(); },
+            [] { Throne::TachyonCore::Update(); },
+        });
         // Interval is sign-encoded in settings (negative = disabled); < 30 min counts as off.
         const auto minutesOf = [](int v) { return v >= 30 ? v : 0; };
         // Every poll while enabled: each group keeps its own schedule, persisted as its sub_last_update.

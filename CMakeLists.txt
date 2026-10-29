@@ -743,6 +743,8 @@ set(ENGINE_SOURCES
         src/engine/services/WebDavBackup.cpp
         include/engine/services/AssetUpdates.h
         src/engine/services/AssetUpdates.cpp
+        include/global/TachyonCore.hpp
+        src/global/TachyonCore.cpp
         include/engine/services/StatsService.h
         src/engine/services/StatsService.cpp
         include/engine/tests/TestObserver.h

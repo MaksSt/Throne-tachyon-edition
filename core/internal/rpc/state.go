@@ -20,6 +20,7 @@ var lifecycleMu sync.Mutex
 var stateMu sync.RWMutex
 
 var boxInstance *boxbox.Box
+var nativeInstance *nativeProbeBox
 
 var instanceCancel context.CancelFunc
 

@@ -20,9 +20,27 @@ type Process struct {
 	stopped     atomic.Bool
 }
 
-type running interface {
+type Running interface {
 	Wait() error
 	Kill() error
+}
+
+type running = Running
+
+// StartChild keeps the platform's privilege drop and filtered environment.
+func StartChild(path string, args []string, noOut bool) (Running, error) {
+	return startChild(path, args, noOut)
+}
+
+// A selected protocol engine owns TUN and routing, so it needs the controller's
+// identity. Extra Core processes continue to use the unprivileged StartChild.
+func StartEngine(path string, args []string) (Running, error) {
+	output := &engineOutput{}
+	run, err := startEngine(path, args, output)
+	if err != nil {
+		return nil, err
+	}
+	return &engineProcess{Running: run, output: output}, nil
 }
 
 func NewProcess(path string, args []string, noOut bool) *Process {

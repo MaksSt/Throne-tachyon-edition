@@ -1,4 +1,5 @@
 #include "include/configs/generate.h"
+#include "include/global/TachyonCore.hpp"
 #include "include/api/RPC.h"
 #include "include/configs/AutoSelectorPlan.h"
 #include "include/configs/common/utils.h"
@@ -541,6 +542,30 @@ namespace Configs {
             return ent->outbound != nullptr ? ent->outbound->DisplayName() : ent->name;
         }
 
+        bool usesEmbeddedXray(const std::shared_ptr<Profile> &ent) {
+            return ent->outbound != nullptr && ent->outbound->IsXray() && dataManager->settingsRepo->proxy_core != "tachyon";
+        }
+
+        QString selectTachyonForValidation(QJsonObject &config) {
+            config.remove("_throne_tachyon");
+            if (dataManager->settingsRepo->proxy_core != "tachyon") return {};
+            QString error;
+            config["_throne_tachyon"] = Throne::TachyonCore::Executable(&error);
+            if (!error.isEmpty()) return error;
+            if (!config.contains("dns")) config["dns"] = QJsonObject{{"servers", QJsonArray{QJsonObject{{"type", "local"}, {"tag", "dns-direct"}}}}, {"final", "dns-direct"}};
+            if (!config.contains("route")) config["route"] = QJsonObject{{"default_domain_resolver", "dns-direct"}};
+            for (const auto *section : {"outbounds", "endpoints"}) {
+                auto items = config.value(section).toArray();
+                for (qsizetype i = 0; i < items.size(); ++i) {
+                    auto item = items[i].toObject();
+                    if (!item.contains("tag")) item["tag"] = QString("validation-%1-%2").arg(section).arg(i);
+                    items[i] = item;
+                }
+                if (!items.isEmpty()) config[section] = items;
+            }
+            return {};
+        }
+
         std::shared_ptr<Profile> getProfile(int id) {
             if (buildProfileOverrides != nullptr) {
                 if (const auto it = buildProfileOverrides->constFind(id); it != buildProfileOverrides->constEnd())
@@ -563,7 +588,7 @@ namespace Configs {
 
         bool usesXrayCore(const std::shared_ptr<Profile> &profile) {
             return profile->outbound != nullptr &&
-                   (profile->outbound->IsXray() || profile->outbound->IsXrayFullConfig());
+                   (usesEmbeddedXray(profile) || profile->outbound->IsXrayFullConfig());
         }
 
         QList<int> groupProxyIDs(int gid)
@@ -926,6 +951,20 @@ namespace Configs {
 
         void buildLogSection(BuildContext &ctx) {
             ctx.result->coreConfig.insert("log", QJsonObject{{"level", dataManager->settingsRepo->log_level}});
+            const auto &settings = *dataManager->settingsRepo;
+            if (settings.proxy_core == "sing-box") return;
+            if (settings.proxy_core != "tachyon") {
+                ctx.error = QObject::tr("Unknown proxy core: %1").arg(settings.proxy_core);
+                return;
+            }
+            QString error;
+            const auto executable = Throne::TachyonCore::Executable(&error);
+            if (!error.isEmpty() || executable.isEmpty()) {
+                ctx.error = error.isEmpty() ? QObject::tr("Could not install Tachyon from GitHub.") : error;
+                return;
+            }
+            // Host-owned metadata, never taken from a subscription or a profile.
+            ctx.result->coreConfig["_throne_tachyon"] = executable;
         }
 
         void buildNTPSection(BuildContext &ctx) {
@@ -1470,15 +1509,15 @@ namespace Configs {
                     error = missingHopError(ctx, id);
                     return;
                 }
-                if (!inXray && ent->outbound->IsXray()) {
+                if (!inXray && usesEmbeddedXray(ent)) {
                     ctx.singToXrayTransitioned = true;
                     scan.coreTransitions++;
                 }
-                if (inXray && !ent->outbound->IsXray()) {
+                if (inXray && !usesEmbeddedXray(ent)) {
                     ctx.xrayToSingTransitioned = true;
                     scan.coreTransitions++;
                 }
-                inXray = ent->outbound->IsXray();
+                inXray = usesEmbeddedXray(ent);
                 if (ent->type == "chain")
                 {
                     error = "Chain in Chain is not allowed";
@@ -1498,7 +1537,7 @@ namespace Configs {
                     scan.xrayFullConfigCount++;
                     scan.xrayFullConfigIdx = static_cast<int>(ents.size());
                 }
-                if (ent->outbound != nullptr && ent->outbound->IsXray()) {
+                if (usesEmbeddedXray(ent)) {
                     scan.xrayHopCount++;
                 }
                 if (isCustomFullConfig(ent)) scan.hasCustomFullConfig = true;
@@ -1593,6 +1632,11 @@ namespace Configs {
                     if (gated) ctx.vpnGateTags << tag;
                 }
                 auto [object, error] = ent->outbound->Build();
+                if (dataManager->settingsRepo->proxy_core == "tachyon" && ent->outbound->IsXray()) {
+                    const auto built = ent->outbound->BuildXray();
+                    object = QJsonObject{{"type", "_throne_xray"}, {"outbound", built.object}};
+                    error = built.error;
+                }
                 if (!error.isEmpty())
                 {
                     ctx.error += error;
@@ -1733,7 +1777,7 @@ namespace Configs {
             QList<std::shared_ptr<Profile>> xrayEnts;
             QList<std::shared_ptr<Profile>> tailingSingEnts;
             for (const auto& ent : ents) {
-                if (ent->outbound->IsXray()) xrayEnts.append(ent);
+                if (usesEmbeddedXray(ent)) xrayEnts.append(ent);
                 else {
                     if (xrayEnts.isEmpty()) initialSingEnts.append(ent);
                     else tailingSingEnts.append(ent);
@@ -1836,7 +1880,7 @@ namespace Configs {
                 auto hop = getProfile(id);
                 if (hop == nullptr || hop->outbound == nullptr) continue;
                 if (hop->outbound->IsXrayFullConfig()) needed.xrayFullConfig = true;
-                const bool xray = hop->outbound->IsXray();
+                const bool xray = usesEmbeddedXray(hop);
                 if (xray && !inXray) needed.singToXray = true;
                 if (!xray && inXray) needed.xrayToSing = true;
                 inXray = xray;
@@ -2784,6 +2828,8 @@ namespace Configs {
             if (custom->type == Custom::CustomFullConfig)
             {
                 res->coreConfig = custom->Build().object;
+                res->error = selectTachyonForValidation(res->coreConfig);
+                if (!res->error.isEmpty()) return res;
                 // macOS points the system DNS at the TUN address once the core starts; a custom config
                 // brings its own tun inbound, so read the address from there like the generated one.
                 for (const auto item : res->coreConfig["inbounds"].toArray()) {
@@ -2845,6 +2891,11 @@ namespace Configs {
 
         buildXrayConfig(ctx);
         if (failed()) return ctx.result;
+
+        if (ctx.result->coreConfig.contains("_throne_tachyon") &&
+            (ctx.result->isXrayNeeded || !ctx.result->xrayFullConfigs.isEmpty())) {
+            ctx.result->error = QObject::tr("Xray profiles require the sing-box proxy core; use a regular VLESS profile for Tachyon.");
+        }
 
         return ctx.result;
     }
@@ -2971,8 +3022,14 @@ namespace Configs {
             QJsonObject xrayConf{
                 {"outbounds", QJsonArray{out}},
             };
+            const bool tachyon = dataManager->settingsRepo->proxy_core == "tachyon";
+            if (tachyon) {
+                xrayConf["outbounds"] = QJsonArray{QJsonObject{{"type", "_throne_xray"}, {"tag", "validation"}, {"outbound", out}}};
+                const auto error = selectTachyonForValidation(xrayConf);
+                if (!error.isEmpty()) { MW_show_log(error); return false; }
+            }
             bool ok;
-            auto resp = API::defaultClient->CheckConfig(&ok, QJsonObject2QString(xrayConf, true), true);
+            auto resp = API::defaultClient->CheckConfig(&ok, QJsonObject2QString(xrayConf, true), !tachyon);
             if (!ok) return coreCallFailed(resp);
             if (resp.isEmpty()) return true;
             MW_show_log("Invalid Xray ent " + ent->outbound->name + ": " + resp);
@@ -3001,6 +3058,9 @@ namespace Configs {
         if (offline) return true;
         bool ok;
         conf.insert("log", QJsonObject{{"level", dataManager->settingsRepo->log_level}});
+        // Full custom configs are untrusted input; only the host generator may select an executable.
+        const auto coreError = selectTachyonForValidation(conf);
+        if (!coreError.isEmpty()) { MW_show_log(coreError); return false; }
         auto resp = API::defaultClient->CheckConfig(&ok, QJsonObject2QString(conf, true));
         if (!ok) return coreCallFailed(resp);
         if (resp.isEmpty()) return true;
@@ -3070,12 +3130,13 @@ namespace Configs {
         buildCertificateSection(ctx);
         buildNTPSection(ctx);
         int suffix = 1;
+        if (!ctx.error.isEmpty()) { res->error = ctx.error; return res; }
 
         int xrayPortIdx=0;
         int xrayCount=0;
         int chainCount=0;
         for (const auto& proxy : profiles) {
-            if (proxy->outbound->IsXray()) xrayCount++;
+            if (usesEmbeddedXray(proxy)) xrayCount++;
             if (proxy->type == "chain") chainCount++;
         }
         // assume all chains transition twice and allocate port for them.
@@ -3145,6 +3206,8 @@ namespace Configs {
                 if (custom->type == Custom::CustomFullConfig)
                 {
                     auto obj = QString2QJsonObject(custom->config);
+                    res->error = selectTachyonForValidation(obj);
+                    if (!res->error.isEmpty()) return res;
                     obj["inbounds"] = QJsonArray();
                     res->fullConfigs[item->id] = QJsonObject2QString(obj, true);
                     continue;
@@ -3162,7 +3225,7 @@ namespace Configs {
             }
             int singToXrayPort = -1;
             int xrayToSingPort = -1;
-            if (item->outbound->IsXray()) singToXrayPort = xrayPorts[xrayPortIdx++];
+            if (usesEmbeddedXray(item)) singToXrayPort = xrayPorts[xrayPortIdx++];
             if (item->type == "chain") {
                 singToXrayPort = xrayPorts[xrayPortIdx++];
                 xrayToSingPort = xrayPorts[xrayPortIdx++];
@@ -3214,6 +3277,10 @@ namespace Configs {
         res->coreConfig = ctx.result->coreConfig;
         res->xrayConfig = ctx.result->xrayConfig;
         res->isXrayNeeded = ctx.result->isXrayNeeded;
+
+        if (res->coreConfig.contains("_throne_tachyon") && (res->isXrayNeeded || !res->xrayFullConfigs.isEmpty())) {
+            res->error = QObject::tr("Xray profiles require the sing-box proxy core; use a regular VLESS profile for Tachyon.");
+        }
 
         return res;
     }

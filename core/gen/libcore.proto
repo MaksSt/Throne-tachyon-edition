@@ -29,6 +29,7 @@ service LibcoreService {
   rpc GenQuicSignature(GenQuicSignatureRequest) returns (GenQuicSignatureResponse);
 
   rpc InstallDashboard(InstallDashboardRequest) returns (ErrorResp);
+  rpc InstallTachyon(InstallTachyonRequest) returns (InstallTachyonResponse);
   //
   rpc QueryAutoSelectors(EmptyReq) returns (QueryAutoSelectorsResponse);
   rpc AutoSelectorAction(AutoSelectorActionRequest) returns (ErrorResp);
@@ -667,4 +668,19 @@ message ResolvedDomain {
   optional string domain = 1 [default = ""];
   repeated string addresses = 2;
   optional string error = 3 [default = ""];
+}
+
+// Host-owned release metadata; downloaded with strict TLS from GitHub latest.
+message InstallTachyonRequest {
+  optional string archive_path = 1 [default = ""];
+  optional string target_dir = 2 [default = ""];
+  optional string version = 3 [default = ""];
+  optional string sha256 = 4 [default = ""];
+}
+
+message InstallTachyonResponse {
+  optional string error = 1 [default = ""];
+  optional string version = 2 [default = ""];
+  optional string path = 3 [default = ""];
+  optional bool changed = 4 [default = false];
 }

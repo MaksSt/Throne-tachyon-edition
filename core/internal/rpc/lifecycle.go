@@ -13,6 +13,7 @@ import (
 	"ThroneCore/internal/boxmain"
 	"ThroneCore/internal/process"
 	"ThroneCore/internal/sysdns"
+	"ThroneCore/internal/tachyon"
 	"ThroneCore/internal/xray"
 
 	"github.com/google/shlex"
@@ -42,12 +43,12 @@ func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.Err
 		}
 	}
 
-	if currentBox() != nil {
+	if currentBox() != nil || currentNative() != nil {
 		err = errors.New("instance already started")
 		return
 	}
 
-	if *in.NeedExtraProcess {
+	if in.GetNeedExtraProcess() {
 		args, e := shlex.Split(in.GetExtraProcessArgs())
 		if e != nil {
 			err = E.Cause(e, "Failed to parse args")
@@ -74,6 +75,27 @@ func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.Err
 		if err != nil {
 			return
 		}
+	}
+
+	if tachyon.Selected([]byte(in.GetCoreConfig())) {
+		var native *nativeProbeBox
+		native, err = newNativeBox(ctx, in.GetCoreConfig())
+		if err != nil {
+			if extraProcess != nil {
+				extraProcess.Stop()
+				extraProcess = nil
+			}
+			return
+		}
+		publishNative(native)
+		log.Println("engine: tachyon-core native; no sing-box instance is running")
+		go func() {
+			<-native.engine.Session.Done()
+			if currentNative() == native {
+				fmt.Println("Extra process exited unexpectedly")
+			}
+		}()
+		return
 	}
 
 	autoRedirectMark.Store(autoRedirectMarkFor([]byte(in.GetCoreConfig())))
@@ -173,6 +195,15 @@ func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.Err
 func (s *server) Stop(ctx context.Context, in *gen.EmptyReq) (out *gen.ErrorResp, _ error) {
 	lifecycleMu.Lock()
 	defer lifecycleMu.Unlock()
+	if native := currentNative(); native != nil {
+		publishNative(nil)
+		native.engine.Stop()
+		if extraProcess != nil {
+			extraProcess.Stop()
+			extraProcess = nil
+		}
+		return &gen.ErrorResp{}, nil
+	}
 
 	var err error
 
@@ -213,6 +244,18 @@ func (s *server) Stop(ctx context.Context, in *gen.EmptyReq) (out *gen.ErrorResp
 
 func (s *server) CheckConfig(ctx context.Context, in *gen.LoadConfigReq) (out *gen.ErrorResp, _ error) {
 	out = &gen.ErrorResp{}
+	if tachyon.Selected([]byte(in.GetCoreConfig())) {
+		engine, err := tachyon.PrepareNativeWithInterface([]byte(in.GetCoreConfig()), defaultInterfaceFinder())
+		if err == nil {
+			checkCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+			defer cancel()
+			err = engine.Plan.Check(checkCtx, launchNativeEngine, nativeConfigFile)
+		}
+		if err != nil {
+			out.Error = To(err.Error())
+		}
+		return out, nil
+	}
 	// boxmain.Check can panic on malformed configs; unrecovered it reaches main()'s os.Exit(0) and kills the core.
 	defer func() {
 		if r := recover(); r != nil {

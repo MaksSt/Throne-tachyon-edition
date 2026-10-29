@@ -13,6 +13,9 @@ import (
 )
 
 func (s *server) QueryStats(ctx context.Context, in *gen.EmptyReq) (out *gen.QueryStatsResp, err error) {
+	if native := currentNative(); native != nil {
+		return native.stats(ctx)
+	}
 	out = &gen.QueryStatsResp{}
 	out.Ups = make(map[string]int64)
 	out.Downs = make(map[string]int64)

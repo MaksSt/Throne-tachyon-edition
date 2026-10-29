@@ -22,6 +22,7 @@ namespace Configs {
 
     void SettingsRepo::initMaps() {
         boolMap = {
+            {"tachyon_auto_update", &tachyon_auto_update},
             {"disable_tray",                  &disable_tray},
             {"random_inbound_port",           &random_inbound_port},
             {"mux_padding",                   &mux_padding},
@@ -100,6 +101,7 @@ namespace Configs {
         };
 
         intMap = {
+            {"tachyon_update_last", &tachyon_update_last},
             {"current_group",          &current_group},
             {"last_filter_column",     &last_filter_column},
             {"inbound_socks_port",     &inbound_socks_port},
@@ -150,6 +152,8 @@ namespace Configs {
             {"exit_lookup_provider",       &exit_lookup_provider},
             {"inbound_address",            &inbound_address},
             {"log_level",                  &log_level},
+            {"proxy_core",                 &proxy_core},
+
             {"log_file_level",             &log_file_level},
             {"mux_protocol",               &mux_protocol},
             {"mux_mode",                   &mux_mode},

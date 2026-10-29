@@ -89,3 +89,12 @@ out
 srslist.h
 .claude
 .qtcreator
+# Local runtime state and credentials (never part of the source distribution)
+/config/
+/cores/
+.env
+.env.*
+!.env.example
+*.key
+*.p12
+*.pfx

@@ -88,6 +88,9 @@ namespace API {
 
         QString InstallDashboard(bool *rpcOK, const QString &archivePath, const QString &targetDir) const;
 
+        libcore::InstallTachyonResponse InstallTachyon(bool *rpcOK, const QString &archivePath, const QString &targetDir,
+                                                     const QString &version, const QString &sha256) const;
+
         // Empty name = the OS has no default route.
         [[nodiscard]] libcore::GetDefaultInterfaceResponse GetDefaultInterface(bool *rpcOK) const;
 

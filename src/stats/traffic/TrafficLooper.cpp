@@ -44,6 +44,10 @@ namespace Stats {
         lastProbeMs = now;
         if (durationMs > kTrafficLooperGapMs) rateWindow.clear();
         RateProbe probe{durationMs, QVector<qint64>(lines.size() * 2, 0)};
+        if (resp.ups.contains("__native_total") && probe.bytes.size() >= 2) {
+            probe.bytes[0] = resp.downs.at("__native_total");
+            probe.bytes[1] = resp.ups.at("__native_total");
+        }
 
         for (auto& group : groups) {
             const auto& tagKey = group.watchTagKey;
@@ -156,7 +160,7 @@ namespace Stats {
                         const auto down = values[line * 2];
                         const auto up = values[line * 2 + 1];
                         if (std::isnan(down) || std::isnan(up)) continue;
-                        if (line == directLine) {
+                        if (!nativeTotals && line == directLine) {
                             directDown = down;
                             directUp = up;
                         } else {
@@ -168,7 +172,8 @@ namespace Stats {
                     proxy->uplink_rate = proxyUp;
                     direct->downlink_rate = directDown;
                     direct->uplink_rate = directUp;
-                    status = QObject::tr("Proxy: %1\nDirect: %2").arg(DisplaySpeed(proxy), DisplaySpeed(direct));
+                    status = nativeTotals ? QObject::tr("Tachyon (total): %1").arg(DisplaySpeed(proxy))
+                                          : QObject::tr("Proxy: %1\nDirect: %2").arg(DisplaySpeed(proxy), DisplaySpeed(direct));
                     ids = creditedIds;
                 }
             }
@@ -242,7 +247,9 @@ namespace Stats {
                                   configGroup.kind == Configs::TrafficChainKind::Route ? TrafficLineKind::Route : TrafficLineKind::Aux};
         }
 
-        QList<TrafficLine> newLines{{QStringLiteral("proxy"), QObject::tr("Proxy"), TrafficLineKind::Proxy}};
+        const bool native = Configs::dataManager->settingsRepo->proxy_core == "tachyon";
+        if (native) { newGroups.clear(); groupKeys.clear(); extras.clear(); }
+        QList<TrafficLine> newLines{{QStringLiteral("proxy"), native ? QObject::tr("Tachyon (total)") : QObject::tr("Proxy"), TrafficLineKind::Proxy}};
         QHash<QString, int> lineOf;
         const auto ownLines = extras.size() <= kTrafficLooperMaxExtraLines ? extras.size() : kTrafficLooperMaxExtraLines - 1;
         for (qsizetype i = 0; i < extras.size(); ++i) {
@@ -254,7 +261,7 @@ namespace Stats {
                 lineOf.insert(extras[i].key, static_cast<int>(newLines.size() - 1));
             }
         }
-        newLines << TrafficLine{QStringLiteral("direct"), QObject::tr("Direct"), TrafficLineKind::Direct};
+        if (!native) newLines << TrafficLine{QStringLiteral("direct"), QObject::tr("Direct"), TrafficLineKind::Direct};
         for (qsizetype i = 0; i < newGroups.size(); ++i) newGroups[i].line = lineOf.value(groupKeys[i], 0);
 
         QList<int> ids;
@@ -275,6 +282,7 @@ namespace Stats {
             *proxy = TrafficLooperEntry{QStringLiteral("proxy")};
             *direct = TrafficLooperEntry{QStringLiteral("direct")};
             groups = newGroups;
+            nativeTotals = native;
             lines = newLines;
             creditedIds = ids;
             rateWindow.clear();

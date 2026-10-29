@@ -700,6 +700,24 @@ namespace API {
         }
     }
 
+    libcore::InstallTachyonResponse Client::InstallTachyon(bool *rpcOK, const QString &archivePath, const QString &targetDir,
+                                                        const QString &version, const QString &sha256) const {
+        libcore::InstallTachyonRequest request;
+        request.archive_path = archivePath.toStdString();
+        request.target_dir = targetDir.toStdString();
+        request.version = version.toStdString();
+        request.sha256 = sha256.toStdString();
+        libcore::InstallTachyonResponse reply;
+        std::vector<uint8_t> resp;
+        const auto status = channel->Call("InstallTachyon", spb::pb::serialize<std::string>(request), resp, 30000);
+        if (status == LocalSocketChannel::CallOK && tryDeserialize(resp, reply)) {
+            *rpcOK = true;
+            return reply;
+        }
+        NOT_OK
+        return {};
+    }
+
     QString Client::InstallDashboard(bool *rpcOK, const QString &archivePath, const QString &targetDir) const
     {
         libcore::InstallDashboardRequest request;

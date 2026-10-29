@@ -219,7 +219,7 @@ func (s *server) ScanURLTest(ctx context.Context, in *gen.ScanURLTestRequest) (*
 		}
 	}
 	if len(pending) > 0 {
-		out.VpnStatus = collectVPNStatus(scanCtx, env.box, pending, 0)
+		out.VpnStatus = collectVPNStatus(scanCtx, env.legacy, pending, 0)
 	}
 	return out, nil
 }

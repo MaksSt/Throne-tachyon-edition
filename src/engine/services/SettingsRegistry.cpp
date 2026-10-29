@@ -214,6 +214,9 @@ namespace Engine::SettingsRegistryImpl {
         static const QList<Key> table = [] {
             const QStringList http = {QStringLiteral("http"), QStringLiteral("https")};
             QList<Key> list;
+            list << enumKey(QStringLiteral("proxy_core"), &Settings::proxy_core, Restart::Profile,
+                            {QStringLiteral("sing-box"), QStringLiteral("tachyon")});
+            list << boolKey(QStringLiteral("tachyon_auto_update"), &Settings::tachyon_auto_update, Restart::None, CheckPeriodic);
             list << boolKey(QStringLiteral("remember_enable"), &Settings::remember_enable, Restart::None);
             list << enumKey(QStringLiteral("log_level"), &Settings::log_level, Restart::Profile,
                             QStringLiteral("trace debug info warn error fatal panic").split(QLatin1Char(' ')));
@@ -453,6 +456,7 @@ namespace Engine::SettingsRegistry {
             QStringLiteral("url_scheme_mirror"), QStringLiteral("url_scheme_auto_register"), QStringLiteral("file_assoc_mirror"),
             QStringLiteral("file_assoc_auto_register"),
             QStringLiteral("extra_core_paths"), QStringLiteral("dial_bind_ifc_history"), QStringLiteral("dial_inet4_bind_history"),
+            QStringLiteral("proxy_core"), QStringLiteral("tachyon_auto_update"), QStringLiteral("tachyon_update_last"),
             QStringLiteral("dial_inet6_bind_history"),
             QStringLiteral("main_window_geometry"), QStringLiteral("mw_size"), QStringLiteral("splitter_state"), QStringLiteral("disable_tray"),
             QStringLiteral("theme"), QStringLiteral("language"), QStringLiteral("font"), QStringLiteral("font_size"),

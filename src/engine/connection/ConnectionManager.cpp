@@ -162,6 +162,12 @@ namespace Engine {
             req.disable_stats = Configs::dataManager->settingsRepo->disable_traffic_stats;
             req.xray_config = QJsonObject2QString(result->xrayConfig, true).toStdString();
             req.need_xray = !result->xrayConfig.isEmpty();
+            const auto tachyonPath = result->coreConfig.value("_throne_tachyon").toString();
+            if (!tachyonPath.isEmpty() && !Sys::KillSwitch::instance()->permitExtraCore(tachyonPath)) {
+                runOnUiThread([slowStart] { slowStart.dismiss(); });
+                finish(StartOutcome::ExtraCoreBlocked, MainWindowTr::tr("tachyon-core could not be allowed through the kill switch."));
+                return false;
+            }
             for (const auto &full : result->xrayFullConfigs) req.xray_full_configs.push_back(full.toStdString());
             if (req.need_xray || !req.xray_full_configs.empty()) {
                 req.xray_outbound_dns_strategy = Configs::getXrayOutboundDomainStrategy().toStdString();

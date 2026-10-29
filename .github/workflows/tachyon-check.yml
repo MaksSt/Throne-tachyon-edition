@@ -1,0 +1,71 @@
+name: Tachyon edition checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-backend:
+    runs-on: windows-latest
+    env:
+      CGO_ENABLED: '0'
+      CORE_TAGS: with_clash_api,with_quic,with_wireguard,with_utls,with_dhcp,with_tailscale,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0,with_purego,with_naive_outbound
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version: '1.27.3'
+          cache-dependency-path: core/go.sum
+      - uses: arduino/setup-protoc@v3.0.0
+        with:
+          version: '31.1'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate RPC bindings
+        shell: pwsh
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          protoc -I core/gen --go_out=core/gen --go-grpc_out=core/gen core/gen/libcore.proto
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Download and verify latest official Tachyon
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $release = gh api repos/Dushnilin/tachyon-core/releases/latest | ConvertFrom-Json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $assetName = "tachyon-core-windows-amd64-$($release.tag_name).zip"
+          $assets = @($release.assets | Where-Object name -eq $assetName)
+          if ($assets.Count -ne 1) { throw 'No unique Windows x64 release asset' }
+          $asset = $assets[0]
+          if ($asset.digest -notmatch '^sha256:([a-fA-F0-9]{64})$') { throw 'Missing release SHA-256' }
+          $expected = $Matches[1]
+          if ($asset.size -le 0 -or $asset.size -gt 64MB) { throw 'Invalid release size' }
+          if ($asset.browser_download_url -notlike 'https://github.com/Dushnilin/tachyon-core/releases/download/*') { throw 'Unexpected release URL' }
+          $archive = Join-Path $env:RUNNER_TEMP 'tachyon-release.zip'
+          $destination = Join-Path $env:RUNNER_TEMP 'tachyon-release'
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $archive
+          if ((Get-Item -LiteralPath $archive).Length -ne $asset.size) { throw 'Release size mismatch' }
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $expected) { throw 'Release SHA-256 mismatch' }
+          Expand-Archive -LiteralPath $archive -DestinationPath $destination
+          $binary = Join-Path $destination 'tachyon-core.exe'
+          if (-not (Test-Path -LiteralPath $binary -PathType Leaf)) { throw 'Release executable missing' }
+          "TACHYON_BINARY=$binary" >> $env:GITHUB_ENV
+          & $binary version
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Check engine boundary
+        run: cmake -P cmake/EngineBoundary.cmake
+      - name: Test native and original backends
+        working-directory: core
+        run: go test -count=1 -ldflags=-checklinkname=0 -tags "$env:CORE_TAGS" ./internal/...
+      - name: Vet internal packages
+        working-directory: core
+        run: go vet -tags "$env:CORE_TAGS" ./internal/...

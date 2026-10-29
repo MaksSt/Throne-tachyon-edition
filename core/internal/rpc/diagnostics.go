@@ -15,7 +15,7 @@ func (s *server) CaptureDiagnostics(ctx context.Context, in *gen.DiagnosticsRequ
 		Window:     time.Duration(in.GetDurationMs()) * time.Millisecond,
 		Contention: in.GetContention(),
 		Trace:      in.GetTrace(),
-		BoxRunning: func() bool { return currentBox() != nil },
+		BoxRunning: func() bool { return currentBox() != nil || currentNative() != nil },
 	}
 	for _, attachment := range in.GetAttachments() {
 		request.Attachments = append(request.Attachments, diagnostics.Attachment{

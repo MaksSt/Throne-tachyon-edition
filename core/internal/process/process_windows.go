@@ -165,6 +165,13 @@ func (t *tokenRunner) Wait() error {
 		return nil
 	}
 	_, err := windows.WaitForSingleObject(h, windows.INFINITE)
+	if err == nil {
+		var code uint32
+		err = windows.GetExitCodeProcess(h, &code)
+		if err == nil && code != 0 {
+			err = fmt.Errorf("process exited with status %d", code)
+		}
+	}
 	<-t.done
 	<-t.done
 	t.mu.Lock()

@@ -259,6 +259,9 @@ func outboundHTTPClient(ctx context.Context, i Box, tag string, outbound adapter
 func tunnelEndpoints(i Box, tag string) []adapter.Endpoint {
 	outbounds := i.Outbound()
 	endpoints := service.FromContext[adapter.EndpointManager](i.Context())
+	if endpoints == nil {
+		return nil
+	}
 	visited := make(map[string]bool)
 	pending := []string{tag}
 	var tunnels []adapter.Endpoint

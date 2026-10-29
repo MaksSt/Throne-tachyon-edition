@@ -68,6 +68,9 @@ namespace Configs {
         // Persisted settings.
         QString mainWindowGeometry;
         QString log_level = "info";
+        QString proxy_core = "sing-box";
+        bool tachyon_auto_update = true;
+        int tachyon_update_last = 0;
         QString test_latency_url = "http://cp.cloudflare.com/";
         // Fetched WITHOUT any proxy, so it must be reachable directly; empty falls back to the OS.
         QString direct_test_url = "";

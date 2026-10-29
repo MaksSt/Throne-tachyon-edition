@@ -61,7 +61,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 	}
 	if len(pending) > 0 {
 		// A snapshot: the probe already sat out the handshake, so a tunnel that settles only now never carried it.
-		out.VpnStatus = collectVPNStatus(testCtx, env.box, pending, 0)
+		out.VpnStatus = collectVPNStatus(testCtx, env.legacy, pending, 0)
 	}
 	return out, nil
 }

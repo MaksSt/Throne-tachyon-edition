@@ -1,7 +1,9 @@
 package rpc
 
 import (
+	"ThroneCore/internal/tachyon"
 	"context"
+	"net/url"
 	"time"
 
 	"ThroneCore/gen"
@@ -91,6 +93,31 @@ func autoSelectorStatusToProto(status group.AutoSelectorStatus) *gen.AutoSelecto
 
 // Idempotent: unlike QueryStats it clears no core-side counters, so any number of consumers may poll it.
 func (s *server) QueryAutoSelectors(ctx context.Context, _ *gen.EmptyReq) (*gen.QueryAutoSelectorsResponse, error) {
+	if native := currentNative(); native != nil {
+		out := &gen.QueryAutoSelectorsResponse{}
+		for tag, members := range native.engine.Selectors {
+			var state struct {
+				Now string `json:"now"`
+			}
+			if err := native.engine.Call(ctx, "GET", tachyon.ProxyPath(tag), nil, &state); err != nil {
+				return nil, err
+			}
+			pinned := state.Now
+			if state.Now == native.engine.SelectorAuto[tag] {
+				pinned = ""
+				if err := native.engine.Call(ctx, "GET", tachyon.ProxyPath(state.Now), nil, &state); err != nil {
+					return nil, err
+				}
+			}
+			group := &gen.AutoSelectorStatus{Tag: To(tag), Phase: To("ready"), Selected: To(state.Now), MembersTotal: To(int32(len(members)))}
+			group.Pinned = To(pinned)
+			for i, member := range members {
+				group.Members = append(group.Members, &gen.AutoSelectorMember{Tag: To(member), Rank: To(int32(i + 1)), Selected: To(member == state.Now)})
+			}
+			out.Groups = append(out.Groups, group)
+		}
+		return out, nil
+	}
 	out := &gen.QueryAutoSelectorsResponse{}
 	for _, selector := range autoSelectors() {
 		out.Groups = append(out.Groups, autoSelectorStatusToProto(selector.Status()))
@@ -99,6 +126,37 @@ func (s *server) QueryAutoSelectors(ctx context.Context, _ *gen.EmptyReq) (*gen.
 }
 
 func (s *server) AutoSelectorAction(ctx context.Context, in *gen.AutoSelectorActionRequest) (*gen.ErrorResp, error) {
+	if native := currentNative(); native != nil {
+		matched := false
+		for tag, members := range native.engine.Selectors {
+			if in.GetTag() != "" && in.GetTag() != tag {
+				continue
+			}
+			matched = true
+			if in.GetAction() == "select" {
+				member := in.GetMember()
+				if member == "" {
+					member = native.engine.SelectorAuto[tag]
+				}
+				if err := native.engine.Call(ctx, "PUT", tachyon.ProxyPath(tag), map[string]string{"name": member}, nil); err != nil {
+					return &gen.ErrorResp{Error: To(err.Error())}, nil
+				}
+			} else if in.GetAction() == "recheck" {
+				for _, member := range members {
+					var delay map[string]any
+					if err := native.engine.Call(ctx, "GET", tachyon.ProxyPath(member)+"/delay?timeout=3000&url="+url.QueryEscape("http://cp.cloudflare.com/"), nil, &delay); err != nil {
+						continue
+					}
+				}
+			} else {
+				return &gen.ErrorResp{Error: To("unknown Tachyon selector action")}, nil
+			}
+		}
+		if !matched {
+			return &gen.ErrorResp{Error: To("no matching Tachyon auto selector is running")}, nil
+		}
+		return &gen.ErrorResp{}, nil
+	}
 	selectors := autoSelectors()
 	if len(selectors) == 0 {
 		return &gen.ErrorResp{Error: To("no auto selector is running")}, nil

@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"errors"
+	"net/url"
 	"os"
 	"strings"
 
@@ -57,6 +58,10 @@ func connMetaToProto(c *trafficcontrol.TrackerMetadata, ruleItem string) *gen.Co
 
 // Non-draining: the recently-closed ring is re-reported every poll and the client dedups by id.
 func (s *server) QueryConnections(ctx context.Context, in *gen.EmptyReq) (*gen.QueryConnectionsResp, error) {
+	if native := currentNative(); native != nil {
+		connections, _, err := native.connections(ctx)
+		return connections, err
+	}
 	box := currentBox()
 	if box == nil {
 		return &gen.QueryConnectionsResp{}, nil
@@ -81,6 +86,16 @@ func (s *server) QueryConnections(ctx context.Context, in *gen.EmptyReq) (*gen.Q
 
 // Ids that already closed are a silent no-op: the client's table is always a poll behind.
 func (s *server) CloseConnections(ctx context.Context, in *gen.CloseConnectionsRequest) (*gen.CloseConnectionsResponse, error) {
+	if native := currentNative(); native != nil {
+		var closed int32
+		for _, id := range in.Ids {
+			if err := native.engine.Call(ctx, "DELETE", "/connections/"+url.PathEscape(id), nil, nil); err != nil {
+				return &gen.CloseConnectionsResponse{Closed: To(closed), Error: To(err.Error())}, nil
+			}
+			closed++
+		}
+		return &gen.CloseConnectionsResponse{Closed: To(closed)}, nil
+	}
 	if len(in.Ids) == 0 {
 		return &gen.CloseConnectionsResponse{Closed: To(int32(0))}, nil
 	}
