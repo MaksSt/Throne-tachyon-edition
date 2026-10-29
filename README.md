@@ -32,8 +32,9 @@ the original sing-box backend remains available.
 
 ## Quick start
 
-1. Build this edition using the [build workflow](.github/workflows/build.yml)
-   and the existing scripts under [script](script/). Keep `Throne.exe`,
+1. Download the Windows x64 archive from [this edition's releases](https://github.com/MaksSt/Throne-tachyon-edition/releases),
+   or build using the [build workflow](.github/workflows/build.yml)
+   and the existing scripts under [script](script/). Extract the complete archive. Keep `Throne.exe`,
    `ThroneCore.exe` and the required runtime libraries together.
 2. In **Basic Settings > Common > Proxy core**, select **tachyon-core** and save.
 3. On first use, Throne installs the latest stable release. **Install / Update
