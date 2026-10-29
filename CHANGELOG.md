@@ -5,10 +5,10 @@
 * Install and update the latest official Tachyon release directly from GitHub, with size and SHA-256 verification; no version or executable path is required.
 * Add native DNS/routing adaptation, connection history, global traffic statistics, selector controls and process cleanup.
 * Prevent Windows TUN from capturing the core's own outbound sockets; preserve explicit egress settings and report Wintun startup failures.
-* Fix private DNS UDP/TCP port reservation and protobuf connection snapshot copying.
+* Fix private DNS UDP/TCP port reservation, including Windows TCP exclusion ranges, and protobuf connection snapshot copying.
 * Preserve attribution and licenses for [Throne](https://github.com/throneproj/Throne) and [Tachyon Core](https://github.com/Dushnilin/tachyon-core). Tachyon binaries are downloaded for local use and are not bundled.
 
-Windows TUN was exercised with Tachyon 0.2.3 and VLESS REALITY/Vision: IPv4 HTTPS, matching proxy egress, an 8 MiB download and UDP DNS passed. The final connection-history fix was tested locally without restarting the live TUN session. General/game UDP, IPv6 TUN and other platforms remain unverified. This release is experimental and unsigned.
+Windows TUN was exercised with Tachyon 0.2.3 and VLESS REALITY/Vision: IPv4 HTTPS, matching proxy egress, an 8 MiB download and UDP DNS passed. The final DNS port-allocation and connection-history fixes were tested locally without restarting the live TUN session. General/game UDP, IPv6 TUN and other platforms remain unverified. This release is experimental and unsigned.
 
 #### 1.4.0-beta.4
 
