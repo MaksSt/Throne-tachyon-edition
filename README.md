@@ -1,147 +1,155 @@
 # Throne Tachyon Edition
 
-A community fork of **[Throne](https://github.com/throneproj/Throne)** with
-native **[Tachyon Core](https://github.com/Dushnilin/tachyon-core)** integration.
-Ordinary profiles and subscriptions can use a managed Tachyon process, while
-the original sing-box backend remains available.
+**Русский** | [English](README.en.md)
 
-## Upstream projects and attribution
+Пользовательская редакция **[Throne](https://github.com/throneproj/Throne)** с
+нативной интеграцией **[Tachyon Core](https://github.com/Dushnilin/tachyon-core)**.
+Обычные профили и подписки могут использовать управляемый процесс Tachyon;
+исходный backend sing-box также доступен.
 
-- **Original application:** [throneproj/Throne](https://github.com/throneproj/Throne),
-  developed by the Throne maintainers and contributors. This fork preserves its
-  source history, original copyright notices and [GPL-3.0 license](LICENSE).
+## Оригинальные проекты и авторы
+
+- **Оригинальное приложение:** [throneproj/Throne](https://github.com/throneproj/Throne),
+  разработчики и участники проекта Throne. В этой редакции сохранены история
+  исходников, уведомления об авторских правах и [лицензия GPL-3.0](LICENSE).
 - **Tachyon Core:** [Dushnilin/tachyon-core](https://github.com/Dushnilin/tachyon-core),
-  maintained by [Dushnilin](https://github.com/Dushnilin). Its current binaries
-  have a separate [binary license](https://github.com/Dushnilin/tachyon-core/blob/main/LICENSE).
-  Throne downloads them directly from the official repository for local use;
-  Tachyon binaries are not committed or bundled in this repository.
-- **Upstream documentation:** [Throne documentation](https://throneproj.github.io/).
-  Upstream installers and package repositories install the original Throne.
+  разработчик — [Dushnilin](https://github.com/Dushnilin). Для исполняемых файлов
+  ядра действует отдельная [binary license](https://github.com/Dushnilin/tachyon-core/blob/main/LICENSE).
+  Приложение загружает их напрямую из официального репозитория для локального
+  использования. Бинарные файлы Tachyon не включены в этот репозиторий и архивы приложения.
+- **Документация оригинала:** [документация Throne](https://throneproj.github.io/).
+  Установщики и пакетные репозитории оригинального проекта устанавливают исходный Throne.
 
-## What this edition adds
+## Возможности этой редакции
 
-- A selectable native Tachyon backend for existing profile editors, share links
-  and subscriptions, including compatible stored Xray VLESS profiles.
-- Automatic installation of the latest stable Tachyon GitHub release, a manual
-  update button, daily checks and SHA-256 verification. No version or executable
-  path needs to be entered.
-- Native latency, speed and IP tests, DNS/routing adaptation, connection and
-  traffic reporting, selector controls and managed process cleanup.
-- Windows TUN egress protection: the core's own sockets stay on the physical
-  interface instead of looping back into its Wintun tunnel.
+- Выбор нативного backend Tachyon для существующих редакторов профилей, ссылок
+  импорта и подписок, включая совместимые сохранённые профили Xray VLESS.
+- Автоматическая установка последнего стабильного релиза Tachyon с GitHub,
+  кнопка обновления, ежедневная проверка и сверка SHA-256. Указывать версию ядра
+  или путь к исполняемому файлу не требуется.
+- Проверки задержки, скорости и внешнего IP через Tachyon, адаптация DNS и
+  маршрутизации, сведения о соединениях и трафике, управление селекторами и
+  завершение процесса ядра при отключении.
+- Защита от петли маршрутизации Windows TUN: собственные исходящие соединения
+  ядра остаются на физическом интерфейсе и не возвращаются в его Wintun-туннель.
 
-## Quick start
+## Быстрый старт
 
-1. Download the Windows x64 archive from [this edition's releases](https://github.com/MaksSt/Throne-tachyon-edition/releases),
-   or build using the [build workflow](.github/workflows/build.yml)
-   and the existing scripts under [script](script/). Extract the complete archive. Keep `Throne.exe`,
-   `ThroneCore.exe` and the required runtime libraries together.
-2. In **Basic Settings > Common > Proxy core**, select **tachyon-core** and save.
-3. On first use, Throne installs the latest stable release. **Install / Update
-   from GitHub** checks immediately; automatic daily checks are enabled by default.
-4. Reconnect to apply a newly installed core. For Windows TUN, run Throne with
-   administrator rights.
+1. Скачайте архив Windows x64 из [релизов этой редакции](https://github.com/MaksSt/Throne-tachyon-edition/releases)
+   или соберите приложение с помощью [build workflow](.github/workflows/build.yml)
+   и скриптов из [script](script/). Полностью распакуйте архив. Файлы `Throne.exe`,
+   `ThroneCore.exe` и необходимые библиотеки должны находиться рядом.
+2. В **Basic Settings > Common > Proxy core** выберите **tachyon-core** и сохраните настройки.
+3. При первом использовании приложение установит последний стабильный релиз ядра.
+   Кнопка **Install / Update from GitHub** проверяет обновления сразу;
+   автоматическая ежедневная проверка включена по умолчанию.
+4. Чтобы применить обновлённое ядро, переподключитесь. Для Windows TUN запускайте
+   Throne с правами администратора.
 
-**Status:** experimental. Windows x64 was exercised with Tachyon 0.2.3 using
-IPv4 HTTPS, external-IP checks, an 8 MiB download and UDP DNS through TUN.
-General/game UDP, IPv6 TUN and other platforms have not been fully validated.
-Details and remaining limitations are listed below. The earlier `dev` branch is
-retained for history; `main` contains this managed integration.
+**Статус:** экспериментальная редакция. На Windows x64 с Tachyon 0.2.3 проверены
+IPv4 HTTPS, внешний IP, загрузка 8 MiB и UDP DNS через TUN.
+Общий и игровой UDP, IPv6 TUN и другие платформы пока не прошли полную проверку.
+Подробности и ограничения приведены ниже. Старая ветка `dev` сохранена для истории;
+текущая управляемая интеграция находится в `main`.
 
-## Tachyon native backend
+## Нативный backend Tachyon
 
-Basic Settings > Common > Proxy core selects `sing-box` (the default) or
-[`tachyon-core`](https://github.com/Dushnilin/tachyon-core). Throne downloads the
-latest stable release automatically on first use. **Install / Update from GitHub**
-checks for the latest stable release immediately; the automatic check is enabled
-by default and runs daily. No version number or executable path is entered.
+В **Basic Settings > Common > Proxy core** можно выбрать `sing-box` (по умолчанию)
+или [`tachyon-core`](https://github.com/Dushnilin/tachyon-core).
+При первом использовании Throne автоматически загружает последний стабильный релиз.
+Кнопка **Install / Update from GitHub** запускает проверку сразу. Автоматическая
+проверка включена по умолчанию и выполняется ежедневно. Вводить версию и путь к ядру не нужно.
 
-Release metadata comes from GitHub's `/releases/latest` API. Throne selects the
-asset for its OS/architecture, requires strict TLS, and checks the published
-SHA-256 digest and size before installation. The controller verifies the archive
-again and runs the staged executable's `version` command. The managed files live
-under `cores/tachyon` in Throne's data directory. Updates publish an atomic
-`current.json` manifest and retain `previous.json` plus the previous executable.
-Running connections keep their existing process; reconnect to use an update.
-A failed download, checksum, extraction or executable check keeps the installed
-release. An unchanged release is not downloaded again. Unsupported platforms
-and unavailable GitHub access report an error; they do not select another core.
+Сведения о релизе поступают из GitHub API `/releases/latest`. Приложение выбирает
+архив для своей ОС и архитектуры, использует строгую проверку TLS и перед установкой
+сверяет опубликованные SHA-256 и размер. Контроллер повторно проверяет архив и
+запускает команду `version` подготовленного ядра. Управляемые файлы хранятся в
+`cores/tachyon` внутри каталога данных Throne. Обновление атомарно публикует
+манифест `current.json`, сохраняя `previous.json` и предыдущий исполняемый файл.
+Работающее соединение продолжает использовать прежний процесс; для применения
+обновления нужно переподключиться.
 
-Tachyon is downloaded directly for local use under its own
+Если загрузка, проверка суммы, распаковка или проверка исполняемого файла завершилась
+ошибкой, установленная версия сохраняется. Тот же релиз повторно не загружается.
+Неподдерживаемая платформа и недоступность GitHub приводят к сообщению об ошибке;
+другое ядро автоматически не выбирается.
+
+Tachyon загружается напрямую для локального использования по собственной
 [binary license](https://github.com/Dushnilin/tachyon-core/blob/main/LICENSE).
-Its binary is not redistributed in Throne's archive. `ThroneCore.exe` remains
-Throne's IPC controller; users do not need to locate or replace either executable.
+Исполняемый файл Tachyon не распространяется в архиве Throne. `ThroneCore.exe`
+остаётся IPC-контроллером приложения; искать или вручную заменять эти файлы не требуется.
 
-With Tachyon selected, its native process owns inbound listeners, protocol
-connections, DNS, routing rules, chains, endpoints, cache and Clash API.
-No sing-box instance is created and no traffic crosses a sing-box bridge.
-Throne adapts and checks the configuration, waits for authenticated API/probe
-listeners, and stops/reaps the process on disconnect. On Windows a job object
-also terminates it if the controller exits abruptly. Native startup errors are
-reported directly. There is no automatic fallback.
+При выборе Tachyon его нативный процесс обслуживает входящие подключения,
+протокольные соединения, DNS, маршрутизацию, цепочки, endpoints, кеш и Clash API.
+Экземпляр sing-box не создаётся, трафик не проходит через промежуточный sing-box.
+Throne адаптирует и проверяет конфигурацию, ожидает готовности API с аутентификацией
+и слушателей для тестов, а при отключении останавливает процесс и дожидается его
+завершения. В Windows Job Object также завершает ядро при аварийном выходе контроллера.
+Ошибки запуска нативного ядра выводятся напрямую. Автоматического перехода на другое ядро нет.
 
-Existing editors, share links and subscriptions remain usable. Stored Xray
-VLESS profiles are converted at build time, including TCP/REALITY/Vision, TLS,
-WebSocket, HTTPUpgrade, gRPC and XHTTP; saved profiles are not rewritten.
-Compatible custom Xray outbounds are adapted too. Unsupported wire options
-(Xray Mux, XDRIVE, ML-DSA REALITY verification) fail explicitly. Native custom
-outbounds and full configurations use Tachyon's validator. DNS predefined
-records are converted from text to the wire format its runtime expects.
+Существующие редакторы, ссылки импорта и подписки остаются доступны. Сохранённые
+профили Xray VLESS преобразуются при построении конфигурации, включая
+TCP/REALITY/Vision, TLS, WebSocket, HTTPUpgrade, gRPC и XHTTP; сами профили не переписываются.
+Совместимые пользовательские Xray outbounds также адаптируются. Неподдерживаемые
+параметры протокола — Xray Mux, XDRIVE и проверка ML-DSA REALITY — приводят к явной ошибке.
+Нативные пользовательские outbounds и полные конфигурации проверяются валидатором
+Tachyon. Предопределённые DNS-записи переводятся из текста в формат DNS-сообщений,
+который ожидает ядро.
 
-Latency, download/upload speed and IP tests use Tachyon's own probe listeners.
-Live connections, rule-set refresh and selector actions use its Clash API.
-Global cumulative traffic counters are converted to deltas and labelled
-**Tachyon (total)**. The API does not supply exact per-outbound totals, so global
-traffic is not charged to profiles. Recently closed connections retain their
-last observed snapshot. Throne's adaptive selector uses Tachyon's native
-URL-test policy; sing-box-specific sampling/cooldown telemetry is unavailable.
+Тесты задержки, скорости загрузки/отдачи и внешнего IP используют собственные
+слушатели Tachyon для проверок. Сведения о текущих соединениях, обновление rule sets
+и действия с селекторами используют Clash API. Общие накопительные счётчики трафика
+преобразуются в приращения и отображаются как **Tachyon (total)**. API не предоставляет
+точных итогов по каждому outbound, поэтому общий трафик не записывается на профили.
+Для недавно закрытых соединений сохраняется последний полученный снимок.
+Адаптивный селектор Throne использует нативную политику URL-test Tachyon;
+специфичная для sing-box телеметрия выборки и cooldown недоступна.
 
-Verified with Tachyon 0.2.3 on Windows x64:
+Проверено с Tachyon 0.2.3 на Windows x64:
 
-- Windows TUN uses Wintun and requires administrator rights. Before `auto_route`
-  captures traffic, Throne binds root outbound and DNS dialers to the physical
-  interface selected by its network monitor. This keeps the proxy's own sockets
-  outside its tunnel. Explicit per-outbound interfaces, bind addresses and
-  detours are preserved. `route.default_interface` overrides detection;
-  `route.auto_detect_interface=false` keeps manual egress configuration.
-- A missing physical interface or a native TUN startup failure is reported as
-  an error. Tachyon's `continuing in passive mode` warning is treated as failed
-  startup, even if its private SOCKS listeners are ready.
-- IPv4 HTTPS and external-IP checks through the Windows tunnel have passed on
-  a REALITY profile without a manually configured interface. UDP DNS replies and
-  an 8 MiB download through the tunnel were also verified. A separate STUN probe
-  timed out on the physical, SOCKS and TUN paths, so general/game UDP is not yet
-  confirmed. IPv6 TUN and Linux TUN have not been live-tested. Earlier Tachyon
-  0.1.6 builds lacked Windows TUN.
-- Protocol/endpoint availability depends on the installed Tachyon release.
-  Interactive VPN challenges and full Xray configurations require the default
-  backend. Not every protocol has been tested against a remote server.
-- Extra Core helpers retain their separate lifecycle. Other native
-  protocols/transports/endpoints are passed to Tachyon's validator/runtime.
+- Windows TUN использует Wintun и требует прав администратора. До захвата трафика
+  через `auto_route` приложение привязывает исходящие подключения корневых outbounds
+  и DNS к физическому интерфейсу, выбранному сетевым монитором. Это удерживает
+  собственные соединения ядра вне его туннеля. Явные интерфейсы, адреса привязки и
+  detours отдельных outbounds сохраняются. `route.default_interface` переопределяет
+  автоматический выбор; `route.auto_detect_interface=false` сохраняет ручную настройку выхода.
+- Если физический интерфейс не найден или нативный TUN не запускается, приложение
+  сообщает об ошибке. Предупреждение Tachyon `continuing in passive mode` считается
+  неудачным запуском, даже если приватные SOCKS-слушатели уже готовы.
+- IPv4 HTTPS и проверка внешнего IP прошли через Windows TUN на REALITY-профиле без
+  ручного указания интерфейса. Также проверены UDP DNS и загрузка 8 MiB через туннель.
+  Отдельный STUN-тест завершился тайм-аутом на физическом интерфейсе, через SOCKS и
+  через TUN, поэтому общий и игровой UDP пока не подтверждены. IPv6 TUN и Linux TUN
+  в живой сети не проверялись. В раннем Tachyon 0.1.6 Windows TUN отсутствовал.
+- Доступность протоколов и endpoints зависит от установленного релиза Tachyon.
+  Интерактивные VPN-проверки и полные конфигурации Xray требуют backend по умолчанию.
+  Не каждый протокол проверен с удалённым сервером.
+- Вспомогательные процессы Extra Core сохраняют отдельный жизненный цикл.
+  Остальные нативные протоколы, транспорты и endpoints передаются валидатору и ядру Tachyon.
 
-Subscription updates preserve the local backend and automatic-update settings. Select
-`sing-box` and reconnect to return to the default backend. Tests in
-`core/internal/coreupdate`, `core/internal/tachyon`, `core/internal/rpc` and `core/internal/probe` cover
-conversion, native DNS, lifecycle, API statistics, backend switching and the
-absence of a sing-box instance in native mode. Set `TACHYON_BINARY` for
-release-binary tests; use the tags/linker flags from `script/build_go.sh`.
+Обновление подписок сохраняет локальный выбор ядра и настройки автоматического
+обновления. Чтобы вернуться к backend по умолчанию, выберите `sing-box` и переподключитесь.
+Тесты в `core/internal/coreupdate`, `core/internal/tachyon`, `core/internal/rpc` и
+`core/internal/probe` проверяют преобразование конфигурации, нативный DNS, жизненный
+цикл, статистику API, переключение backend и отсутствие экземпляра sing-box в нативном
+режиме. Для тестов с настоящим исполняемым файлом задайте `TACHYON_BINARY`;
+используйте build tags и параметры линковки из `script/build_go.sh`.
 
-## Build and verification
+## Сборка и проверки
 
-This fork follows Throne's Qt/CMake and Go build process. See
-[the build workflow](.github/workflows/build.yml) and
-[the Go build script](script/build_go.sh) for toolchains and platform tags.
-The [Tachyon checks workflow](.github/workflows/tachyon-check.yml) verifies the
-Windows backend against the latest official release without publishing binaries.
+Редакция использует исходный процесс сборки Throne на Qt/CMake и Go.
+Версии инструментов и параметры платформ указаны в
+[build workflow](.github/workflows/build.yml) и [скрипте сборки Go](script/build_go.sh).
+[Workflow проверок Tachyon](.github/workflows/tachyon-check.yml) проверяет Windows backend
+с последним официальным релизом ядра без публикации бинарных файлов.
 
-After installing the upstream protobuf tools, generate the Go RPC bindings:
+После установки инструментов protobuf, используемых исходным проектом, создайте Go-код RPC:
 
 ```sh
 protoc -I core/gen --go_out=core/gen --go-grpc_out=core/gen core/gen/libcore.proto
 ```
 
-Example Windows PowerShell checks (with Go, CMake and an official Tachyon
-executable available):
+Пример проверок в Windows PowerShell при наличии Go, CMake и официального исполняемого файла Tachyon:
 
 ```powershell
 $tags = 'with_clash_api,with_quic,with_wireguard,with_utls,with_dhcp,with_tailscale,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0,with_purego,with_naive_outbound'
@@ -151,13 +159,13 @@ go -C core vet -tags $tags ./internal/...
 cmake -P cmake/EngineBoundary.cmake
 ```
 
-Without `TACHYON_BINARY`, tests requiring the actual Tachyon executable are
-skipped. Unit tests and a successful config check do not prove that TUN works on
-an end-user machine; Windows administrator privileges and real traffic still
-need verification. Local profiles, API keys, configuration databases and build
-artifacts must stay outside commits.
+Без `TACHYON_BINARY` тесты, которым нужен настоящий исполняемый файл Tachyon,
+пропускаются. Модульные тесты и успешная проверка конфигурации не доказывают работу
+TUN на устройстве пользователя: для этого нужны права администратора Windows и
+проверка реального трафика. Локальные профили, API-ключи, базы конфигурации и артефакты
+сборки не должны попадать в коммиты.
 
-## Additional upstream credits
+## Благодарности участникам исходных проектов
 
 - [SagerNet/sing-box](https://github.com/SagerNet/sing-box)
 - [XTLS/Xray-core](https://github.com/xtls/xray-core)
@@ -168,7 +176,6 @@ artifacts must stay outside commits.
 - [quirc](https://github.com/dlbeer/quirc)
 - [srombauts/sqlitecpp](https://github.com/srombauts/sqlitecpp)
 
-
-You can support the original Throne project through its
-[upstream support page](https://github.com/throneproj/Throne/blob/dev/.github/donate/Donate.md)
-or [GitHub Sponsors](https://github.com/sponsors/Mahdi-zarei).
+Поддержать оригинальный проект Throne можно через
+[страницу поддержки](https://github.com/throneproj/Throne/blob/dev/.github/donate/Donate.md)
+или [GitHub Sponsors](https://github.com/sponsors/Mahdi-zarei).
