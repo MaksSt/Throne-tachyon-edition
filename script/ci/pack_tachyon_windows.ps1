@@ -24,7 +24,7 @@ if ($files.Name -contains 'tachyon-core.exe') { throw 'Исполняемый ф
 # Throne Tachyon Edition
 
 Полностью распакуйте папку Throne и запустите Throne.exe.
-В Preferences > General > Proxy core выберите tachyon-core.
+В Preferences > Basic Settings > General > Proxy core выберите tachyon-core.
 Приложение загрузит ядро из официального репозитория.
 Для Windows TUN требуются права администратора.
 '@ | Set-Content (Join-Path $package.FullName 'START-HERE.txt')

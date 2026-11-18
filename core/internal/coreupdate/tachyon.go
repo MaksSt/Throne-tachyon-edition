@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"ThroneCore/internal/invoker"
 	"ThroneCore/internal/process"
 )
 
@@ -172,7 +173,13 @@ func atomicWrite(root, name string, data []byte) error {
 func validateReleaseBinary(ctx context.Context, executable string) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	child, err := process.StartAsUser(executable, []string{"version"}, nil, "Tachyon version")
+	start := process.StartEngine
+	if invoker.Boundary() {
+		start = func(path string, args []string) (process.Running, error) {
+			return process.StartAsUser(path, args, nil, "Tachyon version")
+		}
+	}
+	child, err := start(executable, []string{"version"})
 	if err != nil {
 		return err
 	}

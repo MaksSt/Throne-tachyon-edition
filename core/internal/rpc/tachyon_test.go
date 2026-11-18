@@ -125,8 +125,9 @@ func TestNativeRPCNeverCreatesSingBox(t *testing.T) {
 	if updated, err := s.UpdateRuleSets(ctx, &gen.EmptyReq{}); err != nil || updated.GetError() != "" {
 		t.Fatal("native provider API failed", err, updated.GetError())
 	}
-	if env, err := prepareTestEnv(true, false, "", nil, "", nil, true, ""); err != nil || env.box != native {
-		t.Fatal("current test fell back to sing-box", err)
+	probe, err := s.Test(ctx, &gen.TestReq{TestCurrent: To(true), UseDefaultOutbound: To(true), Url: To(origin.URL)})
+	if err != nil || len(probe.GetResults()) != 1 || probe.Results[0].GetError() != "" || probe.Results[0].GetOutboundTag() != "proxy" {
+		t.Fatalf("native URL probe failed: %v %v", err, probe)
 	}
 	if _, err := s.Stop(ctx, &gen.EmptyReq{}); err != nil {
 		t.Fatal(err)

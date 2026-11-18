@@ -39,7 +39,7 @@
    или соберите приложение с помощью [build workflow](.github/workflows/build.yml)
    и скриптов из [script](script/). Полностью распакуйте архив. Файлы `Throne.exe`,
    `ThroneCore.exe` и необходимые библиотеки должны находиться рядом.
-2. В **Preferences > General > Proxy core** выберите **tachyon-core** и сохраните настройки.
+2. В **Preferences > Basic Settings > General > Proxy core** выберите **tachyon-core** и сохраните настройки.
 3. При первом использовании приложение установит последний стабильный релиз ядра.
    Кнопка **Install / Update from GitHub** проверяет обновления сразу;
    автоматическая ежедневная проверка включена по умолчанию.
@@ -54,7 +54,7 @@ IPv4 HTTPS, внешний IP, загрузка 8 MiB и UDP DNS через TUN.
 
 ## Нативный backend Tachyon
 
-В **Preferences > General > Proxy core** можно выбрать `sing-box` (по умолчанию)
+В **Preferences > Basic Settings > General > Proxy core** можно выбрать `sing-box` (по умолчанию)
 или [`tachyon-core`](https://github.com/Dushnilin/tachyon-core).
 При первом использовании Throne автоматически загружает последний стабильный релиз.
 Кнопка **Install / Update from GitHub** запускает проверку сразу. Автоматическая

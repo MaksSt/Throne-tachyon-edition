@@ -283,6 +283,9 @@ func walkChain(i Box, tag string, visit func(tag string, outbound adapter.Outbou
 // Endpoint membership, not a type assertion: plain outbounds such as direct also satisfy adapter.Endpoint.
 func tunnelEndpoints(i Box, tag string) []adapter.Endpoint {
 	endpoints := service.FromContext[adapter.EndpointManager](i.Context())
+	if endpoints == nil {
+		return nil
+	}
 	var tunnels []adapter.Endpoint
 	walkChain(i, tag, func(tag string, _ adapter.Outbound) {
 		if endpoint, isEndpoint := endpoints.Get(tag); isEndpoint {
