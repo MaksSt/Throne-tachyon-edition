@@ -10,7 +10,7 @@ import (
 )
 
 // Windows closes the native engine's job if its controller crashes or is killed.
-func startEngine(path string, args []string, output *engineOutput) (running, error) {
+func startEngine(path string, args []string, output *engineOutput) (Running, error) {
 	job, err := windows.CreateJobObject(nil, nil)
 	if err != nil {
 		return nil, err
@@ -22,7 +22,7 @@ func startEngine(path string, args []string, output *engineOutput) (running, err
 		windows.CloseHandle(job)
 		return nil, err
 	}
-	cmd := newCmd(path, args, false)
+	cmd := newCmd(childSpec{path: path, args: args, env: childEnv()})
 	cmd.Stdout = output
 	cmd.Stderr = output
 	run, err := startCmd(cmd)
@@ -45,7 +45,7 @@ func startEngine(path string, args []string, output *engineOutput) (running, err
 }
 
 type engineJob struct {
-	run running
+	run Running
 	mu  sync.Mutex
 	job windows.Handle
 }

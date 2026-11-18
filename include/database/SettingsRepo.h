@@ -298,13 +298,16 @@ namespace Configs {
 
         // Warp
         bool enable_warp = false;
+        // Outranks enable_warp; the two are kept mutually exclusive.
+        bool enable_tor = false;
         QString warp_private_key = "";
         QString warp_public_key = "";
         QStringList warp_ifc_addrs = {};
         QString warp_ep = "";
         QStringList warp_reserved = {};
         bool warp_tos_accepted = false;
-        QString warp_mode = "wireguard"; // "wireguard" or "masque"
+        QString warp_mode = "wireguard"; // "wireguard", "amnezia", or "masque"
+        QStringList warp_amnezia_packets = {}; // AmneziaWG I1-I5, generated with the identity so config builds need no RPC
         QString warp_masque_private_key = "";
         QString warp_masque_peer_public_key = "";
         QString warp_masque_ep = "";
@@ -312,6 +315,10 @@ namespace Configs {
         QString warp_masque_sni = "consumer-masque.cloudflareclient.com";
         int warp_masque_http_mode = 0; // 0 = HTTP/3 with fallback, 1 = HTTP/3 only, 2 = HTTP/2
         QStringList warp_api_hosts = {}; // registration API domains, tried in order; empty = api.cloudflareclient.com
+        // Registration ClientHello shaping; the core skips it when registration goes through the mixed inbound.
+        bool warp_api_tls_fragment = false;
+        bool warp_api_tls_record_fragment = false;
+        QString warp_api_tls_fragment_fallback_delay = ""; // Go duration; empty = 500ms
 
         // Hotkey
         QString hotkey_mainwindow = "";
@@ -331,6 +338,7 @@ namespace Configs {
         QString core_box_api_secret = "";
         QString core_box_underlying_dns = "";
         int core_dns_in_port = 5533;
+        bool core_dns_in_lan = false;
 
         // Xray
         QString xray_log_level = "warning";

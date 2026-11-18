@@ -7,6 +7,7 @@
 #include "include/global/Configs.hpp"
 #include "include/global/Logger.hpp"
 #include "include/global/Notice.hpp"
+#include "include/sys/CoreElevation.hpp"
 #include "include/sys/KillSwitch.hpp"
 #include "include/sys/Process.hpp"
 
@@ -330,7 +331,7 @@ namespace Engine {
 
     qint64 CoreSupervisor::corePid() const {
         QMutexLocker lock(&m_processMutex);
-        return m_process ? m_process->processId() : 0;
+        return m_process ? m_process->EffectivePid() : 0;
     }
 
     int CoreSupervisor::restartCount() const {
@@ -417,14 +418,8 @@ namespace Engine {
         }
         m_connectTimer->stop();
         setState(CoreState::Connected);
-#ifdef Q_OS_WIN
-        // Local and quick, and it writes windows_set_admin, so it stays here on the main thread.
-        LOG_INFO(QString("elevated: %1").arg(Configs::IsAdmin(true) ? "yes" : "no"));
-        emitCoreStarted();
-#else
         m_probing = true;
         startPrivilegeProbe(m_acceptedGen);
-#endif
     }
 
     void CoreSupervisor::startPrivilegeProbe(quint64 gen, int attempt) {
@@ -451,6 +446,15 @@ namespace Engine {
         if (ok) {
             Configs::SetKnownAdmin(privileged);
             if (coreSupervisorProbeReply) Configs::SetKnownCapabilities(*coreSupervisorProbeReply);
+            QMutexLocker lock(&m_processMutex);
+            const bool throughGrant = m_process && m_process->generation.load() == gen && m_process->through_grant.load();
+            Sys::CoreElevation::NoteCoreReport(throughGrant, privileged);
+        }
+        if (ok && coreSupervisorProbeReply && coreSupervisorProbeReply->corePid > 0) {
+            QMutexLocker lock(&m_processMutex);
+            if (m_process && m_process->AdoptElevatedPid(coreSupervisorProbeReply->corePid, gen)) {
+                LOG_INFO(QString("elevated core: PID %1 (stub PID %2)").arg(coreSupervisorProbeReply->corePid).arg(m_process->processId()));
+            }
         }
         QString elevated = QString("elevated: %1").arg(ok && privileged ? "yes" : "no");
         if (ok && coreSupervisorProbeReply && !coreSupervisorProbeReply->detail.isEmpty())

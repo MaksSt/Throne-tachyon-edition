@@ -20,6 +20,7 @@
 #include "include/api/RPC.h"
 #include "include/api/remote/Server.hpp"
 #include "include/configs/generate.h"
+#include "include/engine/EditLocks.h"
 #include "include/engine/EngineHost.h"
 #include "include/engine/ThreadCheck.h"
 #include "include/engine/app/ExitController.h"
@@ -30,6 +31,7 @@
 #include "include/global/HTTPRequestHelper.hpp"
 #include "include/global/LocalNetwork.hpp"
 #include "include/global/Logger.hpp"
+#include "include/global/RunningProfiles.hpp"
 #include "include/scanner/ScanManager.h"
 #include "include/sys/HostPresence.hpp"
 #include "include/sys/KillSwitch.hpp"
@@ -50,6 +52,8 @@
 
 #ifdef Q_OS_WIN
 #include "3rdparty/WinCommander.hpp"
+#include "include/sys/CoreElevation.hpp"
+#include "include/sys/windows/guihelper.h"
 #include "include/sys/windows/WinVersion.h"
 #endif
 
@@ -81,7 +85,7 @@ void MainWindow::openRouteProfileEditor(int routeId) {
 
     const auto onSaved = [this](const std::shared_ptr<Configs::RouteProfile>& chain) {
         if (!Configs::dataManager->routesRepo->Save(chain)) return;
-        if (chain->id == Configs::dataManager->settingsRepo->current_route_id)
+        if (chain->id == Configs::ActiveRouteId())
             connection()->noteRestartNeeded(Engine::RestartReason::Routing);
     };
     QDialog* editor;
@@ -94,7 +98,10 @@ void MainWindow::openRouteProfileEditor(int routeId) {
         connect(item, &RouteItem::settingsChanged, this, onSaved);
         editor = item;
     }
-    connect(editor, &QDialog::finished, this, [=, this] {
+    // The API must not edit what this editor saves back on OK.
+    auto routeLock = std::make_shared<Engine::EditLock>(Engine::EditTarget::Routes, routeId);
+    connect(editor, &QDialog::finished, this, [this, editor, routeLock]() mutable {
+        routeLock.reset();
         editor->deleteLater();
         setDialogInUse(false);
     });
@@ -154,7 +161,7 @@ void MainWindow::on_menu_exit_triggered() {
     const auto program = QApplication::applicationFilePath();
     QStringList arguments;
     if (restart) {
-        arguments = Configs::dataManager->settingsRepo->argv;
+        arguments = LaunchArgs_WithoutPayload(Configs::dataManager->settingsRepo->argv);
         if (arguments.length() > 0) {
             arguments.removeFirst();
             arguments.removeAll("-tray");
@@ -178,10 +185,25 @@ void MainWindow::on_menu_exit_triggered() {
         }
         relaunched = true;
     }
+    if (reason == ExitReason::RunUpdater && !Windows_IsInAdmin() && !Sys::CoreElevation::InstallDirWritable()) {
+        // This Throne cannot replace its own files: the elevated helper starts the updater once this process has exited.
+        const int code = Sys::CoreElevation::RunUpdater(Configs::GetBasePath() + "/Throne.zip", QCoreApplication::applicationPid());
+        if (code != Sys::CoreElevation::HelperOk) {
+            exitController()->setExitInProgress(false);
+            exit_reason = ExitReason::None;
+            if (code == -1) {
+                MW_show_log(tr("The update was cancelled, Throne keeps running"));
+            } else {
+                MessageBoxWarning(QObject::tr("Update"), Sys::CoreElevation::ResultText(code));
+            }
+            return;
+        }
+        relaunched = true;
+    }
 #endif
 
     Engine::host()->shutdown(!unattended);
-    if (reason == ExitReason::RunUpdater) {
+    if (reason == ExitReason::RunUpdater && !relaunched) {
         QDir::setCurrent(QApplication::applicationDirPath());
 #ifdef Q_OS_WIN
         QFile::copy("./updater.exe", "./updater.old");
@@ -252,12 +274,12 @@ void MainWindow::confirm_disable_kill_switch() {
 
 namespace {
 
-// [major, minor, patch, stage, number]; alpha, beta and rc are stages 1-3, so they rank below the release itself.
-using Version = std::array<int, 5>;
+// [major, minor, patch, stage, number, edition revision]; alpha, beta and rc are stages 1-3, so they rank below the release itself.
+using Version = std::array<int, 6>;
 constexpr int kReleaseStage = 4;
 
 std::optional<Version> parseVersion(const QString &text) {
-    static const QRegularExpression pattern(QStringLiteral(R"(^v?(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta|rc)\.?(\d*))?$)"));
+    static const QRegularExpression pattern(QStringLiteral(R"(^v?(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta|rc)\.?(\d*))?-tachyon\.(\d+)$)"));
     const auto match = pattern.match(text.trimmed());
     if (!match.hasMatch()) return std::nullopt;
     const auto stage = match.captured(4);
@@ -265,7 +287,7 @@ std::optional<Version> parseVersion(const QString &text) {
                         : stage == QLatin1String("alpha") ? 1
                         : stage == QLatin1String("beta") ? 2 : 3;
     return Version{match.captured(1).toInt(), match.captured(2).toInt(), match.captured(3).toInt(), stageRank,
-                   match.captured(5).toInt()};
+                   match.captured(5).toInt(), match.captured(6).toInt()};
 }
 
 bool isNewer(const QString &version) {
@@ -318,7 +340,7 @@ void MainWindow::OpenDashboard() {
     const auto &settings = *Configs::dataManager->settingsRepo;
     const auto port = settings.core_box_api_port;
     if (port <= 0) {
-        MessageBoxWarning(software_name, tr("The sing-box API is disabled. Set a listen port in Preferences > Basic Settings > Core."));
+        MessageBoxWarning(software_name, tr("The sing-box API is disabled. Set a listen port in Preferences > Integration Settings > Core APIs."));
         return;
     }
     if (settings.started_id < 0) {
@@ -417,7 +439,7 @@ void MainWindow::CheckUpdate() {
     // Releases carry no checksum or signature, so TLS is all that vouches for the download URL and the archive.
     HttpGetOptions options;
     options.strictTls = true;
-    auto resp = NetworkRequestHelper::HttpGet("https://api.github.com/repos/throneproj/Throne/releases", options);
+    auto resp = NetworkRequestHelper::HttpGet("https://api.github.com/repos/MaksSt/Throne-tachyon-edition/releases", options);
     if (!resp.error.isEmpty()) {
         runOnUiThread([=,this] {
             MessageBoxWarning(QObject::tr("Update"), QObject::tr("Requesting update error: %1").arg(resp.error + "\n" + resp.data));
@@ -432,7 +454,7 @@ void MainWindow::CheckUpdate() {
         QJsonObject release = value.toObject();
         if (release["prerelease"].toBool() && !Configs::dataManager->settingsRepo->allow_beta_update) continue;
         for (const QJsonValue asset : release["assets"].toArray()) {
-            if (asset["name"].toString().contains(search) && asset["name"].toString().section('.', -1) == QString("zip")) {
+            if (asset["name"].toString() == QStringLiteral("Throne-%1-%2.zip").arg(release["tag_name"].toString(), search)) {
                 pre_release = release["prerelease"].toBool();
                 release_url = release["html_url"].toString();
                 release_tag = release["tag_name"].toString();
@@ -452,14 +474,19 @@ void MainWindow::CheckUpdate() {
 
     options.headers = {{"Accept", "application/vnd.github.raw+json"}};
     const auto changelog = NetworkRequestHelper::HttpGet(
-        QStringLiteral("https://api.github.com/repos/throneproj/Throne/contents/CHANGELOG.md?ref=") +
+        QStringLiteral("https://api.github.com/repos/MaksSt/Throne-tachyon-edition/contents/CHANGELOG.md?ref=") +
             QString::fromLatin1(QUrl::toPercentEncoding(release_tag)), options);
     const auto notes = changelog.error.isEmpty() ? releaseNotes(QString::fromUtf8(changelog.data), release_tag) : QString();
 
     runOnUiThread([=,this] {
         const auto headless = Sys::HostPresence::OtherHeadless();
         const bool headlessSameInstall = headless && Sys::HostPresence::SameInstall(*headless, QCoreApplication::applicationDirPath());
-        const bool allow_updater = !Configs::dataManager->settingsRepo->flag_use_appdata && !headlessSameInstall;
+        bool allow_updater = !Configs::dataManager->settingsRepo->flag_use_appdata;
+#ifdef Q_OS_WIN
+        // The elevated helper installs into a folder this Throne cannot write.
+        if (!Sys::CoreElevation::InstallDirWritable() && Sys::CoreElevation::CanGrant()) allow_updater = true;
+#endif
+        allow_updater = allow_updater && !headlessSameInstall;
         const auto notice = headlessSameInstall
             ? tr("Update is unavailable while a background Throne (PID %1) runs from this installation; stop it first.").arg(headless->pid)
             : QString();

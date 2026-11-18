@@ -187,6 +187,7 @@ namespace Engine {
         engineHostInstance = nullptr;
         detachFrontEnd();
         Subscription::updater()->SetUrlTester(nullptr);
+        Subscription::updater()->SetCountryTester(nullptr);
         Lifecycle::SetStopHandler({});
         delete m_router;
         m_autoSelector.reset();
@@ -240,6 +241,12 @@ namespace Engine {
             // The job's own count: the global may already belong to the next job.
             MW_show_log(MainWindowTr::tr("Imported %1 profile(s)").arg(importedCount >= 0 ? importedCount : Configs::dataManager->settingsRepo->imported_count));
         });
+        connect(EngineEvents::instance(), &EngineEvents::subscriptionReplacedRunning, this, [this](int profileId) {
+            // Whatever the user started since the refresh stopped the old profile wins.
+            if (connectionState() != ConnectionState::Idle) return;
+            start(StartRequest{profileId, false});
+        });
+        connect(EngineEvents::instance(), &EngineEvents::routingRestartNeeded, this, [this] { noteRestartNeeded(RestartReason::Routing); });
         // Queued and connected before the window's model refresh, so posted-event order clears the cache first.
         auto *ipLists = Scanner::IpListUpdater::instance();
         connect(ipLists, &Scanner::IpListUpdater::listsChanged, this, [] { Configs::InvalidateEndpointDisplayCache(); }, Qt::QueuedConnection);
@@ -251,6 +258,9 @@ namespace Engine {
 
         Subscription::updater()->SetUrlTester([this](const QList<int> &profileIDs, bool interactive, const Subscription::GroupUpdater::Finish &done) {
             m_tests->queueUrlTests(profileIDs, done, interactive);
+        });
+        Subscription::updater()->SetCountryTester([this](const QList<int> &profileIDs, bool interactive, const Subscription::GroupUpdater::Finish &done) {
+            m_tests->queueIpTests(profileIDs, done, interactive);
         });
 
         Dashboard::SeedClashUi();
@@ -432,6 +442,18 @@ namespace Engine {
         return m_stats->freshLiveRates(maxAgeMs);
     }
 
+    void EngineHost::watchConnections() {
+        m_stats->watchConnections();
+    }
+
+    ConnectionSnapshot EngineHost::connectionSnapshot() const {
+        return m_stats->connectionSnapshot();
+    }
+
+    void EngineHost::closeConnections(const QStringList &ids, const std::function<void(const ConnectionCloseResult &)> &done) {
+        StatsService::closeConnections(ids, done);
+    }
+
     bool EngineHost::testsRunning() {
         return m_tests->isRunning();
     }
@@ -444,6 +466,7 @@ namespace Engine {
         switch (kind) {
             case Engine::TestKind::Latency: return m_tests->runUrlTests(profileIds, onFinished, false);
             case Engine::TestKind::Ip: return m_tests->runIpTests(profileIds, onFinished, false);
+            case Engine::TestKind::Service: return m_tests->runServiceChecks(profileIds, onFinished, false);
             case Engine::TestKind::Speed: break;
         }
         return m_tests->runSpeedTests(profileIds, false, onFinished, false);

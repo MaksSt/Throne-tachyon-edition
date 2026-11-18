@@ -15,6 +15,7 @@ jobs:
     runs-on: windows-latest
     env:
       CGO_ENABLED: '0'
+      TACHYON_TAG: v0.5.9
       CORE_TAGS: with_clash_api,with_quic,with_wireguard,with_utls,with_dhcp,with_tailscale,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0,with_purego,with_naive_outbound
     steps:
       - uses: actions/checkout@v7.0.1
@@ -35,13 +36,14 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           protoc -I core/gen --go_out=core/gen --go-grpc_out=core/gen core/gen/libcore.proto
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-      - name: Download and verify latest official Tachyon
+      - name: Download and verify the validated official Tachyon release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $release = gh api repos/Dushnilin/tachyon-core/releases/latest | ConvertFrom-Json
+          $release = gh api "repos/Dushnilin/tachyon-core/releases/tags/$env:TACHYON_TAG" | ConvertFrom-Json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if ($release.tag_name -ne $env:TACHYON_TAG -or $release.draft -or $release.prerelease) { throw 'Unexpected Tachyon release' }
           $assetName = "tachyon-core-windows-amd64-$($release.tag_name).zip"
           $assets = @($release.assets | Where-Object name -eq $assetName)
           if ($assets.Count -ne 1) { throw 'No unique Windows x64 release asset' }

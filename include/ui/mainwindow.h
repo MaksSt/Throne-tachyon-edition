@@ -68,6 +68,7 @@ class GlobalHotkeys;
 class DialogVpnAuth;
 class DialogScanner;
 class DialogIpLists;
+class DialogRuleTester;
 class CommandPalette;
 
 namespace Qv2ray::ui { class SyntaxHighlighter; }
@@ -183,6 +184,8 @@ private slots:
 
     void on_menu_scanner_triggered();
 
+    void on_menu_find_settings_triggered();
+
     void on_menu_integration_settings_triggered();
 
     void on_menu_add_from_input_triggered();
@@ -190,6 +193,8 @@ private slots:
     void on_menu_add_from_clipboard_triggered();
 
     void on_menu_clone_triggered();
+
+    void on_menu_pin_triggered();
 
     void on_menu_delete_repeat_triggered();
 
@@ -295,7 +300,7 @@ private:
     QString addressFilterString;
     QString nameFilterString;
     QString typeFilterString;
-    QString countryFilterString;
+    QString testFilterString;
 
     QTimer *m_filterRefreshDebounce = nullptr;
 
@@ -370,6 +375,8 @@ private:
 
     QList<int> get_now_selected_list();
     void refresh_startstop_button();
+    void refresh_pin_action();
+    void refresh_action_states();
 
     // View slots of ConnectionManager and VpnAuthController, in mainwindow_view.cpp.
     void addRunMarker(qint64 monoMs, Engine::RunMarker kind, const QString &name);
@@ -517,6 +524,7 @@ private:
     QPointer<DialogVpnAuth> m_vpnAuthDialog;
     QPointer<DialogScanner> m_scannerDialog;
     QPointer<DialogIpLists> m_ipListsDialog;
+    QPointer<DialogRuleTester> m_ruleTesterDialog;
     QHash<int, QString> m_scannerNames;
     bool m_scannerPanelShown = false;
 

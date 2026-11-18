@@ -38,7 +38,7 @@ the original sing-box backend remains available.
    or build using the [build workflow](.github/workflows/build.yml)
    and the existing scripts under [script](script/). Extract the complete archive. Keep `Throne.exe`,
    `ThroneCore.exe` and the required runtime libraries together.
-2. In **Basic Settings > Common > Proxy core**, select **tachyon-core** and save.
+2. In **Preferences > General > Proxy core**, select **tachyon-core** and save.
 3. On first use, Throne installs the latest stable release. **Install / Update
    from GitHub** checks immediately; automatic daily checks are enabled by default.
 4. Reconnect to apply a newly installed core. For Windows TUN, run Throne with
@@ -52,7 +52,7 @@ retained for history; `main` contains this managed integration.
 
 ## Tachyon native backend
 
-Basic Settings > Common > Proxy core selects `sing-box` (the default) or
+Preferences > General > Proxy core selects `sing-box` (the default) or
 [`tachyon-core`](https://github.com/Dushnilin/tachyon-core). Throne downloads the
 latest stable release automatically on first use. **Install / Update from GitHub**
 checks for the latest stable release immediately; the automatic check is enabled
@@ -134,7 +134,9 @@ This fork follows Throne's Qt/CMake and Go build process. See
 [the build workflow](.github/workflows/build.yml) and
 [the Go build script](script/build_go.sh) for toolchains and platform tags.
 The [Tachyon checks workflow](.github/workflows/tachyon-check.yml) verifies the
-Windows backend against the latest official release without publishing binaries.
+Windows backend against official Tachyon Core v0.5.9 without publishing binaries.
+Throne Tachyon Edition 1.4.2-tachyon.1 is based on Throne 1.4.2.
+The app still installs the current stable release of the core.
 
 After installing the upstream protobuf tools, generate the Go RPC bindings:
 

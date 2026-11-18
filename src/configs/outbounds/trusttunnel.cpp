@@ -81,6 +81,29 @@ namespace Configs {
             return QCoreApplication::translate("Validation", "Use 1 to 32 bytes in hex, optionally followed by /mask of the same length, for example a0b0/f0f0.");
         }
 
+        QString TrustTunnelClientRandomAuthKey(const QString& text)
+        {
+            return Validation::Hex(text, 0, 0);
+        }
+
+        QString TrustTunnelClientRandomPair(bool clientRandom, bool authKey)
+        {
+            if (!clientRandom || !authKey) return {};
+            return QCoreApplication::translate("Validation", "Use either Client Random or Client Random Key, not both.");
+        }
+
+        QString TrustTunnelClientRandomAuthKeySni(bool disableSni, bool mixedCaseSni, const QString& serverName)
+        {
+            if (disableSni) return QCoreApplication::translate("Validation", "Client Random Key cannot be combined with Disable SNI.");
+            if (mixedCaseSni) return QCoreApplication::translate("Validation", "Client Random Key cannot be combined with mixed-case SNI.");
+            auto name = serverName.trimmed();
+            while (name.endsWith('.')) name.chop(1);
+            if (name.isEmpty() || IsIpAddress(name)) {
+                return QCoreApplication::translate("Validation", "Client Random Key needs a domain name as the SNI; set Custom SNI or the TLS server name.");
+            }
+            return {};
+        }
+
         QString TrustTunnelCredentials(const QString& username, const QString& password)
         {
             if (!username.trimmed().isEmpty() && !password.isEmpty()) return {};
@@ -162,9 +185,12 @@ namespace Configs {
                 case 0x0E:
                     if (!text.startsWith("https://")) return false;
                     break;
-                default: break; // has_ipv6, dns_upstreams, client_random_auth_key and unknown tags
+                case 0x0F: client_random_auth_key = text.trimmed(); break;
+                default: break; // has_ipv6, dns_upstreams and unknown tags
             }
         }
+        // The auth key takes priority over client_random_prefix, as in the official client.
+        if (!client_random_auth_key.isEmpty()) client_random.clear();
         if (extraAddresses > 0) {
             ParseDiag::Warn("address", QCoreApplication::translate("Validation", "The link lists %n more server address(es); only the first one was imported.", nullptr, extraAddresses));
         }
@@ -190,6 +216,7 @@ namespace Configs {
         }
         if (query.hasQueryItem("custom_sni")) custom_sni = query.queryItemValue("custom_sni").trimmed();
         if (query.hasQueryItem("client_random")) client_random = query.queryItemValue("client_random").trimmed();
+        if (query.hasQueryItem("client_random_auth_key")) client_random_auth_key = query.queryItemValue("client_random_auth_key").trimmed();
         
         tls->ParseFromLink(link);
         tls->enabled = true; // TrustTunnel always uses tls
@@ -210,6 +237,7 @@ namespace Configs {
         if (object.contains("quic_congestion_control")) congestion_control = trustTunnelImportCongestion(object["quic_congestion_control"].toString());
         if (object.contains("custom_sni")) custom_sni = object["custom_sni"].toString();
         if (object.contains("client_random")) client_random = object["client_random"].toString();
+        if (object.contains("client_random_auth_key")) client_random_auth_key = object["client_random_auth_key"].toString();
         if (object.contains("tls")) tls->ParseFromJson(object["tls"].toObject());
         return true;
     }
@@ -230,6 +258,7 @@ namespace Configs {
         if (quic) query.addQueryItem("congestion_control", congestion_control.isEmpty() ? "bbr" : congestion_control);
         if (!custom_sni.isEmpty()) query.addQueryItem("custom_sni", custom_sni);
         if (!client_random.isEmpty()) query.addQueryItem("client_random", client_random);
+        if (!client_random_auth_key.isEmpty()) query.addQueryItem("client_random_auth_key", client_random_auth_key);
         
         mergeUrlQuery(query, tls->ExportToLink());
         mergeUrlQuery(query, outbound::ExportToLink());
@@ -252,6 +281,7 @@ namespace Configs {
         }
         if (!custom_sni.isEmpty()) object["custom_sni"] = toAceHost(custom_sni);
         if (!client_random.isEmpty()) object["client_random"] = client_random;
+        if (!client_random_auth_key.isEmpty()) object["client_random_auth_key"] = client_random_auth_key;
         if (tls->enabled) object["tls"] = tls->ExportToJson();
         return object;
     }
@@ -272,6 +302,7 @@ namespace Configs {
         }
         if (!custom_sni.isEmpty()) object["custom_sni"] = toAceHost(custom_sni);
         if (!client_random.isEmpty()) object["client_random"] = client_random;
+        if (!client_random_auth_key.isEmpty()) object["client_random_auth_key"] = client_random_auth_key;
         if (tls->enabled) {
             const auto tlsResult = tls->Build();
             if (!tlsResult.error.isEmpty()) return {{}, tlsResult.error};
@@ -285,6 +316,8 @@ namespace Configs {
             if (!quic && !tlsObject.contains("utls")) {
                 tlsObject["utls"] = QJsonObject{{"enabled", true}, {"fingerprint", "chrome"}};
             }
+            // Only the global mixed-case default can reach here with an auth key; the core rejects the pair.
+            if (!client_random_auth_key.isEmpty()) tlsObject.remove("tls_tricks");
             object["tls"] = tlsObject;
         }
         return {object, ""};
@@ -310,7 +343,13 @@ namespace Configs {
         report("custom_sni", Checks::ServerName(custom_sni), custom_sni);
         // The server grants access by this prefix, so it is not echoed.
         report("client_random", Checks::TrustTunnelClientRandom(client_random));
-        report("tls", Checks::TrustTunnelTlsConflict(!client_random.isEmpty(), !custom_sni.isEmpty(), quic, tls->ech->enabled,
+        report("client_random_auth_key", Checks::TrustTunnelClientRandomAuthKey(client_random_auth_key));
+        report("client_random_auth_key", Checks::TrustTunnelClientRandomPair(!client_random.isEmpty(), !client_random_auth_key.isEmpty()));
+        if (!client_random_auth_key.isEmpty()) {
+            const auto sni = !custom_sni.isEmpty() ? custom_sni : !tls->server_name.isEmpty() ? tls->server_name : server;
+            report("client_random_auth_key", Checks::TrustTunnelClientRandomAuthKeySni(tls->disable_sni, tls->tls_tricks, sni));
+        }
+        report("tls", Checks::TrustTunnelTlsConflict(!client_random.isEmpty() || !client_random_auth_key.isEmpty(), !custom_sni.isEmpty(), quic, tls->ech->enabled,
                                                      tls->reality->enabled, tls->disable_sni,
                                                      tls->utls->enabled ? tls->utls->fingerPrint : QString()));
     }

@@ -45,6 +45,7 @@ namespace Configs {
             {"vpn_strict_route",              &vpn_strict_route},
             {"vpn_auto_redirect",             &vpn_auto_redirect},
             {"vpn_l3_bridge",                 &vpn_l3_bridge},
+            {"core_dns_in_lan",               &core_dns_in_lan},
             {"sub_clear",                     &sub_clear},
             {"sub_respect_server_interval",   &sub_respect_server_interval},
             {"sub_show_change_popup",         &sub_show_change_popup},
@@ -75,7 +76,10 @@ namespace Configs {
             {"log_enable_include",            &log_enable_include},
             {"log_enable_exclude",            &log_enable_exclude},
             {"enable_warp",                   &enable_warp},
+            {"enable_tor",                    &enable_tor},
             {"warp_tos_accepted",             &warp_tos_accepted},
+            {"warp_api_tls_fragment",         &warp_api_tls_fragment},
+            {"warp_api_tls_record_fragment",  &warp_api_tls_record_fragment},
             {"enable_dns_routing",            &enable_dns_routing},
             {"inbound_auth",                  &inbound_auth},
             {"allow_stopping_active_profile", &allow_stopping_active_profile},
@@ -223,6 +227,7 @@ namespace Configs {
             {"warp_masque_peer_public_key", &warp_masque_peer_public_key},
             {"warp_masque_ep",             &warp_masque_ep},
             {"warp_masque_sni",            &warp_masque_sni},
+            {"warp_api_tls_fragment_fallback_delay", &warp_api_tls_fragment_fallback_delay},
             {"inbound_user",               &inbound_user},
             {"inbound_pass",               &inbound_pass},
             {"url_scheme_mirror",          &url_scheme_mirror},
@@ -249,6 +254,7 @@ namespace Configs {
             {"warp_reserved", &warp_reserved},
             {"warp_masque_ifc_addrs", &warp_masque_ifc_addrs},
             {"warp_api_hosts", &warp_api_hosts},
+            {"warp_amnezia_packets", &warp_amnezia_packets},
         };
     }
 

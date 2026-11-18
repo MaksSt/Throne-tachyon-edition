@@ -39,7 +39,7 @@
    или соберите приложение с помощью [build workflow](.github/workflows/build.yml)
    и скриптов из [script](script/). Полностью распакуйте архив. Файлы `Throne.exe`,
    `ThroneCore.exe` и необходимые библиотеки должны находиться рядом.
-2. В **Basic Settings > Common > Proxy core** выберите **tachyon-core** и сохраните настройки.
+2. В **Preferences > General > Proxy core** выберите **tachyon-core** и сохраните настройки.
 3. При первом использовании приложение установит последний стабильный релиз ядра.
    Кнопка **Install / Update from GitHub** проверяет обновления сразу;
    автоматическая ежедневная проверка включена по умолчанию.
@@ -54,7 +54,7 @@ IPv4 HTTPS, внешний IP, загрузка 8 MiB и UDP DNS через TUN.
 
 ## Нативный backend Tachyon
 
-В **Basic Settings > Common > Proxy core** можно выбрать `sing-box` (по умолчанию)
+В **Preferences > General > Proxy core** можно выбрать `sing-box` (по умолчанию)
 или [`tachyon-core`](https://github.com/Dushnilin/tachyon-core).
 При первом использовании Throne автоматически загружает последний стабильный релиз.
 Кнопка **Install / Update from GitHub** запускает проверку сразу. Автоматическая
@@ -141,7 +141,9 @@ Tachyon. Предопределённые DNS-записи переводятс�
 Версии инструментов и параметры платформ указаны в
 [build workflow](.github/workflows/build.yml) и [скрипте сборки Go](script/build_go.sh).
 [Workflow проверок Tachyon](.github/workflows/tachyon-check.yml) проверяет Windows backend
-с последним официальным релизом ядра без публикации бинарных файлов.
+с официальным Tachyon Core v0.5.9 без публикации бинарных файлов.
+Throne Tachyon Edition 1.4.2-tachyon.1 основана на Throne 1.4.2.
+При установке ядра приложение по-прежнему загружает текущий стабильный релиз.
 
 После установки инструментов protobuf, используемых исходным проектом, создайте Go-код RPC:
 

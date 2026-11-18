@@ -23,8 +23,11 @@ namespace Configs {
 
         static RouteDns Global();
 
-        // The current routing profile's own DNS, else the global one; *own tells which.
+        // OfRoute(ActiveRouteId()): the routing profile in effect, the one being built on this thread included.
         static RouteDns Current(bool* own = nullptr);
+
+        // That routing profile's own DNS, else the global one; *own tells which.
+        static RouteDns OfRoute(int routeId, bool* own = nullptr);
 
         [[nodiscard]] QJsonObject ToJson() const;
 
@@ -74,6 +77,9 @@ namespace Configs {
         bool autoUpdate = false;
         qint64 remoteLastUpdate = 0; // epoch seconds
 
+        // The subscription group whose updates overwrite Rules (Group::import_sub_route); -1 for none. Local only.
+        int source_gid = -1;
+
         // Profile ids of openvpn/openconnect profiles run alongside this routing profile.
         QList<int> endpointProfileIDs;
 
@@ -94,7 +100,8 @@ namespace Configs {
         // A rule with a key the desktop cannot store is dropped into *warnings; an array left with no rule fails.
         static QList<std::shared_ptr<RouteRule>> parseJsonArray(const QJsonArray& arr, QString* parseError, QString* warnings = nullptr);
 
-        QJsonArray get_route_rules(bool forView = false, std::map<int, QString> outboundMap = {});
+        // sourceIndexes gets each returned rule's index in Rules, -1 for the injected adblock rule.
+        QJsonArray get_route_rules(bool forView = false, std::map<int, QString> outboundMap = {}, QList<int>* sourceIndexes = nullptr);
 
         // Endpoints travel as whole configs with credentials cleared; one that cannot is skipped into *warnings.
         QJsonObject ToShareObject(QString* warnings = nullptr);
@@ -113,6 +120,9 @@ namespace Configs {
 
         // The positional placeholder paired with an endpoint, correlated by type + outboundID.
         static std::shared_ptr<RouteRule> MakeEndpointRule(int endpointProfileID);
+
+        // An empty simple rule of that type, as the Basic tab starts one; nullptr for a type that is not simple.
+        static std::shared_ptr<RouteRule> NewSimpleRule(ruleType type);
 
         // Each listed endpoint, followed by its opened-up inner hops.
         QList<int> endpointRuleTargets() const;

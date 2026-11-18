@@ -19,7 +19,9 @@
 
 #ifdef Q_OS_WIN
 #include <3rdparty/WinCommander.hpp>
+#include "include/sys/CoreElevation.hpp"
 #include "include/sys/windows/eventHandler.h"
+#include "include/sys/windows/guihelper.h"
 #include "include/sys/windows/WinVersion.h"
 #endif
 #ifdef Q_OS_MACOS
@@ -56,11 +58,45 @@ namespace {
     QTranslator *guiStartupTranslator = nullptr;
 
     void guiStartupLoadTranslate(const QString &locale) {
-        QT_TRANSLATE_NOOP("QPlatformTheme", "Cancel");
-        QT_TRANSLATE_NOOP("QPlatformTheme", "Apply");
-        QT_TRANSLATE_NOOP("QPlatformTheme", "Yes");
-        QT_TRANSLATE_NOOP("QPlatformTheme", "No");
+        // Throne ships no qtbase_*.qm, so Qt's own button and context menu texts are translated through these keys.
         QT_TRANSLATE_NOOP("QPlatformTheme", "OK");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Save");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Save All");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Open");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "&Yes");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Yes to &All");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "&No");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "N&o to All");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Abort");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Retry");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Ignore");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Close");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Cancel");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Discard");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Help");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Apply");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Reset");
+        QT_TRANSLATE_NOOP("QPlatformTheme", "Restore Defaults");
+        QT_TRANSLATE_NOOP("QGnomeTheme", "&OK");
+        QT_TRANSLATE_NOOP("QGnomeTheme", "&Save");
+        QT_TRANSLATE_NOOP("QGnomeTheme", "&Cancel");
+        QT_TRANSLATE_NOOP("QGnomeTheme", "&Close");
+        QT_TRANSLATE_NOOP("QGnomeTheme", "Close without Saving");
+        QT_TRANSLATE_NOOP("QWidgetTextControl", "&Undo");
+        QT_TRANSLATE_NOOP("QWidgetTextControl", "&Redo");
+        QT_TRANSLATE_NOOP("QWidgetTextControl", "Cu&t");
+        QT_TRANSLATE_NOOP("QWidgetTextControl", "&Copy");
+        QT_TRANSLATE_NOOP("QWidgetTextControl", "Copy &Link Location");
+        QT_TRANSLATE_NOOP("QWidgetTextControl", "&Paste");
+        QT_TRANSLATE_NOOP("QWidgetTextControl", "Delete");
+        QT_TRANSLATE_NOOP("QWidgetTextControl", "Select All");
+        QT_TRANSLATE_NOOP("QLineEdit", "&Undo");
+        QT_TRANSLATE_NOOP("QLineEdit", "&Redo");
+        QT_TRANSLATE_NOOP("QLineEdit", "Cu&t");
+        QT_TRANSLATE_NOOP("QLineEdit", "&Copy");
+        QT_TRANSLATE_NOOP("QLineEdit", "&Paste");
+        QT_TRANSLATE_NOOP("QLineEdit", "Delete");
+        QT_TRANSLATE_NOOP("QLineEdit", "Select All");
         if (guiStartupTranslator != nullptr) {
             guiStartupTranslator->deleteLater();
         }
@@ -144,10 +180,22 @@ namespace GuiStartup {
 #ifdef Q_OS_WIN
     bool RelaunchElevatedIfNeeded(Engine::InstanceServer &server, const QStringList &arguments, const QString &launchDeeplink,
                                   const QStringList &launchFiles) {
-        if (Configs::dataManager->settingsRepo->windows_set_admin && !Configs::IsAdmin() && !Configs::dataManager->settingsRepo->disable_run_admin)
+        const auto &settings = Configs::dataManager->settingsRepo;
+        // Cached here on the main thread for the callers on other threads.
+        const auto elevationStatus = Sys::CoreElevation::CurrentStatus();
+        if (settings->windows_set_admin && !Windows_IsInAdmin() && !settings->disable_run_admin)
         {
-            Configs::dataManager->settingsRepo->windows_set_admin = false; // so that if permission denied, we will run as user on the next run
-            Configs::dataManager->settingsRepo->Save();
+            settings->windows_set_admin = false; // so that if permission denied, we will run as user on the next run
+            settings->Save();
+            // The grant's one UAC prompt replaces the elevated relaunch; declined, Throne carries on unelevated. With a grant
+            // already in place, the elevated session was chosen over it (it did not take effect), so the relaunch stays.
+            if (Sys::CoreElevation::CanGrant() && elevationStatus != Sys::CoreElevation::Status::Granted) {
+                const int code = Sys::CoreElevation::Grant();
+                const QString outcome = "core elevation grant: " + Sys::CoreElevation::ResultText(code);
+                if (code == Sys::CoreElevation::HelperOk || code == -1) LOG_INFO(outcome);
+                else LOG_WARN(outcome);
+                return false;
+            }
             // Hand-offs already accepted are read into the pending buffers first; closing the server would drop them.
             const QDeadlineTimer pump(200);
             while (!pump.hasExpired()) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
@@ -162,6 +210,11 @@ namespace GuiStartup {
             if (!server.listen()) LOG_WARN("could not restart the instance server: " + server.errorString());
             Deeplink_Submit(pendingDeeplink);
             LaunchFiles_Submit(pendingFiles);
+        }
+        // An elevated session is remembered, so the next start elevates again (or grants the core in its place).
+        if (const bool elevated = Windows_IsInAdmin(); settings->windows_set_admin != elevated) {
+            settings->windows_set_admin = elevated;
+            settings->Save();
         }
         return false;
     }

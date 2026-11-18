@@ -1,3 +1,151 @@
+#### 1.4.2-tachyon.1
+
+* Обновлена база Throne до 1.4.2.
+* Интеграция Tachyon Core проверяется с официальным релизом v0.5.9. Сохранена автоматическая загрузка ядра из официального репозитория.
+
+#### 1.4.2
+
+* Add Tor as an egress option **1**
+* Add Rule Tester and a program picker for process rules
+* Add profile pinning
+* Add QUIC Opener **2**
+* Allow multiple DNS servers, queried in parallel
+* Allow an auto selector inside a chain and add hop-by-hop chain testing
+* Add Service Check (experimental) **3**
+* Add DPI evasion settings scan (experimental) **4**
+* Add subscription profile filters (experimental)
+* Add priority tiers and passive scoring to the auto selector (experimental)
+* Run only the core as administrator on Windows **5**
+* Reorganize the settings dialogs
+* Improve subscription updates and Clash import
+* Improve WireGuard handshake DPI resistance
+* Rework Juicity and TrustTunnel for better compatibility
+* Remove the Tailscale state directory option **6**
+* Update sing-box and Mieru
+* Fixes and Improvements
+
+**1**:
+Routing Settings > Egress > Tor sends traffic through the Tor network after the selected server and opens `.onion` sites. Tor binary is downloaded from the Tor Project when you first enable it.
+
+**2**:
+Found in a profile's Advanced settings. It sends a decoy packet before each new UDP flow, so networks that block QUIC by its first packet let MASQUE, Hysteria2 and TUIC through.
+
+**3**:
+Service Check, in the profile context menu, tests which services (ChatGPT, Gemini, Netflix, YouTube Premium, ...) work through a profile and what kind of IP it exits from.
+
+**4**:
+Scan DPI evasion settings, in the profile context menu, tests variations of a profile's anti-DPI settings on your network and lets you apply the one that works best.
+
+**5**:
+Tun mode and the kill switch now ask once to Grant Privileges, after which Throne itself no longer needs to run as administrator.
+
+**6**:
+Tailscale profiles now keep their state in a fixed folder, so they need to log in once more after updating.
+
+#### 1.4.1
+
+### Join [Throne's Telegram channel](https://t.me/ThroneProj) for announcements and community support
+
+* Fix macOS Tun mode
+* Fix invalid geometry of the main window
+* Fix XHTTP Extra field parsing
+
+#### 1.4.0
+
+* Introducing Simple interface mode **1**
+* Introducing Headless mode, Throne API and Web UI **2**
+* Add DNS tunnels: dnstt/VayDNS, MasterDNS/StormDNS and XDNS **3**
+* Add IP Scanner **4**
+* Add Kill switch **5**
+* Add per-group routing profiles and subscription routing import
+* Add DNS settings to route profiles and an enable/disable toggle for route rules
+* Add Ctrl+K command palette for commands and settings
+* Add WebDAV backup **6**
+* Add AmneziaWG mode to WARP and improve WARP MASQUE
+* Add Amnezia auto l-values generator
+* Add XDRIVE transport for Xray
+* Add option to serve DNS to other devices
+* Add multi-group auto selector support and country exclusion with `!XX`
+* Add input validation
+* Improve log navigation and filtering
+* Improve custom themes
+* Rework macOS Tun DNS
+* Remove hijack and redirect features
+* Update sing-box and enforce go Tun stack
+* Update Qt to 6.12 and Go to 1.27, and lower the glibc requirement of the Linux builds to 2.28 **7**
+* Add Homebrew cask and apt/aur/rpm repositories **8**
+* Fixes and Improvements
+
+**1**:
+New installs now start in Simple mode, which hides advanced options. Hidden options keep their values and still apply. Switch modes through Program > Advanced Mode or Basic Settings > Style > Interface.
+
+**2**:
+Throne can now run without a GUI through Docker or as a service, for routers, VMs and other machines without a desktop. Both headless and desktop Throne can be controlled remotely through the Throne API, using the `thronectl` tool or the library from [Throne-api](https://github.com/throneproj/Throne-api). `thronectl web` serves a password-protected web UI. Refer to the [documentation](https://throneproj.github.io/headless/thronectl/) for more details.
+
+**3**:
+Refer to the [documentation](https://throneproj.github.io/advanced/dns_tunnels/) for more details.
+
+**4**:
+The IP Scanner tests a list of IPs for specific traits, such as a TLS handshake or a URL test through a profile, to find reachable CDN or WARP ranges.
+
+**5**:
+When enabled, no traffic can leave the device (except some LAN/discovery ranges) unless it is tunneled through Throne.
+
+**6**:
+Backups can now be uploaded to and restored from any WebDAV server (Nextcloud, a NAS, Yandex Disk, ...) through the Backup section of Basic Settings. The WebDAV credentials stay on the device and are never included in a backup.
+
+**7**:
+The main macOS builds now require macOS 14.4 or newer; older macOS versions should use the `macoslegacy` build. The zip, deb and rpm builds that bundle Qt now run on older distributions such as Ubuntu 20.04, Debian 11 and RHEL/AlmaLinux 8.
+
+**8**:
+Stable releases are now published to Throne's own Homebrew tap (`brew install --cask throneproj/tap/throne`) and to apt, rpm and AUR repositories. Refer to the [documentation](https://throneproj.github.io/get_started/installation/) for more details.
+
+#### 1.4.0-beta.6
+
+* Add DNS tunnels: dnstt/VayDNS, MasterDNS/StormDNS and XDNS **1**
+* Improve custom themes
+* Rework macOS Tun DNS
+* Lower the glibc requirement of the Linux builds to 2.28 **2**
+* Update sing-box
+* Fixes and Improvements
+
+**1**:
+DNS tunnels carry traffic inside DNS queries sent through public resolvers, for networks where little else gets through. They can be imported from `dnst://`, `slipnet://`, `masterdns://` and `stormdns://` links or added by hand, and the IP scanner can test resolvers for them. Refer to the [documentation](https://throneproj.github.io/advanced/dns_tunnels/) for more details.
+
+**2**:
+The zip, deb and rpm builds that bundle Qt now run on older distributions such as Ubuntu 20.04, Debian 11 and RHEL/AlmaLinux 8. This does not affect system-qt builds.
+
+#### 1.4.0-beta.5
+
+* Add About dialog and move Check for Update to the Program menu
+* Show the release notes in the update dialog
+* Show the sort indicator in the profiles table
+* Add Xray Mux to Preset Settings and allow custom per-profile Xray Mux, with a Max Connections limit
+* Add AmneziaWG mode to WARP
+* Add option to serve DNS to other devices
+* Allow excluding countries in the auto selector with `!XX`
+* Start the auto selector as soon as enough profiles work
+* Reconnect when a subscription update replaces the running profile
+* Limit the data view to two lines, with the rest in its tooltip
+* Fix Hysteria2 links with `none` or `plain` obfs
+* Fix Xray XHTTP connections staying open after tests and profile switches
+* Fix DNS loop on macOS in Tun mode
+* Fix links and files opened with Throne being imported again after a restart
+* Update sing-box and Xray, and add S3 storage to XDRIVE
+* Introducing Simple interface mode **1**
+* Add per-group routing profiles and subscription routing import **2**
+* Add Web UI **3**
+* Fixes and Improvements
+
+**1**:
+New installs now start in Simple mode, which hides advanced options and merges sparse settings tabs. Hidden options keep their values and still apply. Switch modes through Program > Advanced Mode or Basic Settings > Style > Interface; existing installs stay in Advanced mode.
+
+**2**:
+Each group can now use its own routing profile instead of the one chosen in the Routing menu. Subscription groups can also import the routing profile their provider sends (Happ format) on every update; that routing profile belongs to the group and is deleted along with it. DNS settings from the subscription are never used.
+
+**3**:
+`thronectl web` serves a password-protected web UI for headless and desktop Throne, to switch and test profiles, manage groups and subscriptions, follow traffic and logs, change settings, and back up and restore. The Docker image starts it when `THRONE_WEB_LISTEN` is set, and the deb/rpm packages ship a `throne-web` service. Refer to the [documentation](https://throneproj.github.io/headless/web/) for more details.
+
 #### 1.4.0-beta.4-tachyon.1
 
 * First experimental Windows x64 release of Throne Tachyon Edition.
