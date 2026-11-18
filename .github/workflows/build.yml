@@ -12,6 +12,10 @@ on:
         description: "Run the smoke and end-to-end test jobs"
         type: boolean
         default: false
+      windows64_only:
+        description: "Build the Tachyon Edition Windows x64 ZIP for manual publication"
+        type: boolean
+        default: false
 env:
   # Every job's Go, and the golang image the Dockerfile builds thronectl with. The legacy builds use MetaCubeX's Go 1.26.
   GO_VERSION: "1.27.3"
@@ -32,44 +36,42 @@ jobs:
         uses: actions/checkout@v7.0.1
       - name: Checking the engine/UI boundary
         run: cmake -DROOT=${{ github.workspace }} -P cmake/EngineBoundary.cmake
+      - name: Validate Windows x64 build inputs
+        if: inputs.windows64_only
+        env:
+          TAG: ${{ inputs.tag }}
+          PUBLISH: ${{ inputs.publish }}
+          RUN_TESTS: ${{ inputs.tests }}
+        run: |
+          if [[ "$TAG" != *-tachyon.* || -n "$PUBLISH" || "$RUN_TESTS" == true ]]; then
+            echo "::error::Use a Tachyon Edition tag, leave publish blank, and disable full-matrix tests."
+            exit 1
+          fi
       - name: Checking the changelog
         if: contains(inputs.tag, '-tachyon.') || github.event.inputs.publish == 'r' || github.event.inputs.publish == 'p'
         env:
           TAG: ${{ github.event.inputs.tag }}
         run: bash ./script/release_notes.sh "$TAG" > /dev/null
   build-go:
+    needs: lint
     permissions:
       contents: read
     strategy:
       matrix:
-        include:
-          - cross_os: windows
-            cross_arch: amd64
-            runner: ubuntu-22.04
-          - cross_os: windows
-            cross_arch: arm64
-            runner: ubuntu-22.04
-          - cross_os: linux
-            cross_arch: amd64
-            runner: ubuntu-22.04
-          - cross_os: linux
-            cross_arch: arm64
-            runner: ubuntu-22.04
-          - cross_os: darwin
-            cross_arch: amd64
-            runner: macos-latest
-          - cross_os: darwin
-            cross_arch: arm64
-            runner: macos-latest
-          - cross_os: darwinlegacy
-            cross_arch: amd64
-            runner: macos-latest
-          - cross_os: windowslegacy
-            cross_arch: amd64
-            runner: macos-latest
-          - cross_os: windowslegacy
-            cross_arch: 386
-            runner: macos-latest
+        include: >-
+          ${{ fromJSON(inputs.windows64_only &&
+          '[{"cross_os": "windows", "cross_arch": "amd64", "runner": "ubuntu-22.04"}]' ||
+          '[
+          {"cross_os": "windows", "cross_arch": "amd64", "runner": "ubuntu-22.04"},
+          {"cross_os": "windows", "cross_arch": "arm64", "runner": "ubuntu-22.04"},
+          {"cross_os": "linux", "cross_arch": "amd64", "runner": "ubuntu-22.04"},
+          {"cross_os": "linux", "cross_arch": "arm64", "runner": "ubuntu-22.04"},
+          {"cross_os": "darwin", "cross_arch": "amd64", "runner": "macos-latest"},
+          {"cross_os": "darwin", "cross_arch": "arm64", "runner": "macos-latest"},
+          {"cross_os": "darwinlegacy", "cross_arch": "amd64", "runner": "macos-latest"},
+          {"cross_os": "windowslegacy", "cross_arch": "amd64", "runner": "macos-latest"},
+          {"cross_os": "windowslegacy", "cross_arch": "386", "runner": "macos-latest"}
+          ]') }}
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     env:
@@ -149,6 +151,7 @@ jobs:
           path: artifacts.tgz
           compression-level: 0
   build-android:
+    if: ${{ !inputs.windows64_only }}
     permissions:
       contents: read
     runs-on: ubuntu-22.04
@@ -196,65 +199,20 @@ jobs:
       - build-go
     strategy:
       matrix:
-        include:
-          - platform: windows-latest
-            qt_version: "6.12.0"
-            target: x64
-            dest_suffix: windows-amd64
-            common: windows-amd64
-            launcher: sccache
-          - platform: windows-11-arm
-            qt_version: "6.12.0"
-            target: arm64
-            dest_suffix: windows-arm64
-            common: windows-arm64
-            launcher: ""
-          # The bundled-Qt linux-amd64 and linux-arm64 builds are build-cpp-manylinux's.
-          - platform: ubuntu-22.04
-            qt_version: "6.2.0"
-            target: x86_64
-            dest_suffix: linux-amd64-system-qt
-            common: linux-amd64
-            launcher: ccache
-          - platform: ubuntu-22.04-arm
-            qt_version: "6.2.0"
-            target: aarch64
-            dest_suffix: linux-arm64-system-qt
-            common: linux-arm64
-            launcher: ccache
-          - platform: macos-latest
-            qt_version: "6.12.0"
-            osx_target: "14.4"
-            target: x86_64
-            dest_suffix: darwin-amd64
-            common: darwin-amd64
-            launcher: ccache
-          - platform: macos-latest
-            qt_version: "6.12.0"
-            osx_target: "14.4"
-            target: arm64
-            dest_suffix: darwin-arm64
-            common: darwin-arm64
-            launcher: ccache
-          - platform: macos-15
-            qt_version: "6.4.3"
-            osx_target: "10.15"
-            target: x86_64
-            dest_suffix: darwinlegacy-amd64
-            common: darwinlegacy-amd64
-            launcher: ccache
-          - platform: windows-latest
-            qt_version: "6.2.13"
-            target: x64
-            dest_suffix: windowslegacy-amd64
-            common: windowslegacy-amd64
-            launcher: sccache
-          - platform: windows-2022
-            qt_version: "6.2.13"
-            target: x86
-            dest_suffix: windowslegacy-386
-            common: windowslegacy-386
-            launcher: sccache
+        include: >-
+          ${{ fromJSON(inputs.windows64_only &&
+          '[{"platform": "windows-latest", "qt_version": "6.12.0", "target": "x64", "dest_suffix": "windows-amd64", "common": "windows-amd64", "launcher": "sccache"}]' ||
+          '[
+          {"platform": "windows-latest", "qt_version": "6.12.0", "target": "x64", "dest_suffix": "windows-amd64", "common": "windows-amd64", "launcher": "sccache"},
+          {"platform": "windows-11-arm", "qt_version": "6.12.0", "target": "arm64", "dest_suffix": "windows-arm64", "common": "windows-arm64", "launcher": ""},
+          {"platform": "ubuntu-22.04", "qt_version": "6.2.0", "target": "x86_64", "dest_suffix": "linux-amd64-system-qt", "common": "linux-amd64", "launcher": "ccache"},
+          {"platform": "ubuntu-22.04-arm", "qt_version": "6.2.0", "target": "aarch64", "dest_suffix": "linux-arm64-system-qt", "common": "linux-arm64", "launcher": "ccache"},
+          {"platform": "macos-latest", "qt_version": "6.12.0", "osx_target": "14.4", "target": "x86_64", "dest_suffix": "darwin-amd64", "common": "darwin-amd64", "launcher": "ccache"},
+          {"platform": "macos-latest", "qt_version": "6.12.0", "osx_target": "14.4", "target": "arm64", "dest_suffix": "darwin-arm64", "common": "darwin-arm64", "launcher": "ccache"},
+          {"platform": "macos-15", "qt_version": "6.4.3", "osx_target": "10.15", "target": "x86_64", "dest_suffix": "darwinlegacy-amd64", "common": "darwinlegacy-amd64", "launcher": "ccache"},
+          {"platform": "windows-latest", "qt_version": "6.2.13", "target": "x64", "dest_suffix": "windowslegacy-amd64", "common": "windowslegacy-amd64", "launcher": "sccache"},
+          {"platform": "windows-2022", "qt_version": "6.2.13", "target": "x86", "dest_suffix": "windowslegacy-386", "common": "windowslegacy-386", "launcher": "sccache"}
+          ]') }}
       fail-fast: false
     runs-on: ${{ matrix.platform }}
     env:
@@ -408,6 +366,7 @@ jobs:
   # their Qt in. gcc-toolset's libstdc++_nonshared links the C++ symbols newer than GCC 8 statically, so the zip and its
   # packages need no more than Debian 10, Ubuntu 20.04 and RHEL 8 ship.
   build-cpp-manylinux:
+    if: ${{ !inputs.windows64_only }}
     permissions:
       contents: read
     needs:
@@ -534,6 +493,7 @@ jobs:
       - name: Smoke test as a systemd notify service
         run: bash ./script/ci/headless_smoke.sh b
   pack:
+    if: ${{ !inputs.windows64_only }}
     name: Pack ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
     needs:
