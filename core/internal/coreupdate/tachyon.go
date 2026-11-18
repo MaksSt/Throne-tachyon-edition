@@ -47,7 +47,6 @@ type Result struct {
 // the staged binary's version command before publishing it.
 type Installer struct {
 	Validate func(context.Context, string) error
-	Adopt    func(string) error
 }
 
 func BinaryName() string {
@@ -136,11 +135,6 @@ func (i Installer) Install(ctx context.Context, archivePath, root, version, expe
 	relative, _ := filepath.Rel(root, executable)
 	manifest := Manifest{Version: version, Path: filepath.ToSlash(relative), ArchiveSHA256: expected, BinarySHA256: digest(binary)}
 	manifestData, _ := json.Marshal(manifest)
-	if i.Adopt != nil {
-		if err = i.Adopt(root); err != nil {
-			return result, err
-		}
-	}
 	if len(oldData) > 0 {
 		if err = atomicWrite(root, "previous.json", oldData); err != nil {
 			return result, err
@@ -178,7 +172,7 @@ func atomicWrite(root, name string, data []byte) error {
 func validateReleaseBinary(ctx context.Context, executable string) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	child, err := process.StartEngine(executable, []string{"version"})
+	child, err := process.StartAsUser(executable, []string{"version"}, nil, "Tachyon version")
 	if err != nil {
 		return err
 	}

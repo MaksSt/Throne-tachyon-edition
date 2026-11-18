@@ -7,12 +7,16 @@ import (
 
 	"ThroneCore/gen"
 	"ThroneCore/internal/coreupdate"
+	"ThroneCore/internal/invoker"
 )
 
 func (s *server) InstallTachyon(ctx context.Context, in *gen.InstallTachyonRequest) (*gen.InstallTachyonResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	result, err := (coreupdate.Installer{Adopt: adoptExtracted}).Install(ctx, in.GetArchivePath(), in.GetTargetDir(), in.GetVersion(), in.GetSha256())
+	// The archive and install directory come from the client.
+	result, err := invoker.Call(func() (coreupdate.Result, error) {
+		return (coreupdate.Installer{}).Install(ctx, in.GetArchivePath(), in.GetTargetDir(), in.GetVersion(), in.GetSha256())
+	})
 	if err != nil {
 		return &gen.InstallTachyonResponse{Error: To(err.Error())}, nil
 	}

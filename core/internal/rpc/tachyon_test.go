@@ -34,7 +34,7 @@ func TestNativeRPCNeverCreatesSingBox(t *testing.T) {
 		t.Fatal("Tachyon selection started a sing-box instance")
 	}
 	native := currentNative()
-	transport := &http.Transport{DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+	transport := &http.Transport{DisableKeepAlives: true, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 		return native.engine.Dial(ctx, "proxy", address)
 	}}
 	defer transport.CloseIdleConnections()
@@ -48,12 +48,17 @@ func TestNativeRPCNeverCreatesSingBox(t *testing.T) {
 	if string(body) != "native-only" {
 		t.Fatal("wrong response")
 	}
+	// The relay updates its counters after writing the bytes the client just read.
+	waitForTachyonSnapshot(t, func() bool {
+		var snapshot clashConnections
+		if err := native.engine.Call(ctx, http.MethodGet, "/connections", nil, &snapshot); err != nil {
+			t.Fatal(err)
+		}
+		return snapshot.DownloadTotal > 0 && len(snapshot.Connections) == 0
+	})
 	stats, err := s.QueryStats(ctx, &gen.EmptyReq{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if stats.Downs["__native_total"] <= 0 {
-		t.Fatal("native statistics were not reported")
+	if err != nil || stats.Downs["__native_total"] <= 0 {
+		t.Fatal("native statistics were not reported", err)
 	}
 	second, err := s.QueryStats(ctx, &gen.EmptyReq{})
 	if err != nil || second.Downs["__native_total"] != 0 {
@@ -96,17 +101,21 @@ func TestNativeRPCNeverCreatesSingBox(t *testing.T) {
 	if err != nil || closed.GetError() != "" || closed.GetClosed() != 1 {
 		t.Fatal("native connection close failed", err, closed.GetError())
 	}
-	history, err := s.QueryConnections(ctx, &gen.EmptyReq{})
-	if err != nil {
-		t.Fatal(err)
-	}
 	var retained *gen.ConnectionMetaData
-	for _, entry := range history.Closed {
-		if entry.GetId() == previous.GetId() {
-			retained = entry
-			break
+	// DELETE signals the relay to close asynchronously.
+	waitForTachyonSnapshot(t, func() bool {
+		history, err := s.QueryConnections(ctx, &gen.EmptyReq{})
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
+		for _, entry := range history.Closed {
+			if entry.GetId() == previous.GetId() {
+				retained = entry
+				return true
+			}
+		}
+		return false
+	})
 	if retained == nil || retained.GetClosedAt() == 0 || previous.GetClosedAt() != 0 {
 		t.Fatal("closed history lost the connection or changed a published snapshot")
 	}
@@ -165,5 +174,16 @@ func TestNativeSelectorPinAndRelease(t *testing.T) {
 		if status.Groups[0].GetPinned() != member {
 			t.Fatal("native pin state is wrong")
 		}
+	}
+}
+
+func waitForTachyonSnapshot(t *testing.T, ready func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for !ready() {
+		if time.Now().After(deadline) {
+			t.Fatal("Tachyon API snapshot did not reflect the completed operation")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }

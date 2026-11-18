@@ -11,6 +11,7 @@ if ($LASTEXITCODE -ne 0 -or $commit -ne $env:GITHUB_SHA) {
 $work = Join-Path $env:RUNNER_TEMP 'tachyon-package'
 $package = New-Item -ItemType Directory (Join-Path $work 'Throne') -Force
 Get-ChildItem -LiteralPath $env:DEST -Exclude '*.pdb' | Copy-Item -Destination $package.FullName -Recurse
+Copy-Item -LiteralPath LICENSE -Destination $package.FullName
 $files = Get-ChildItem -LiteralPath $package.FullName -File -Recurse
 if ($files.Name -contains 'tachyon-core.exe') { throw 'Исполняемый файл Tachyon попал в архив' }
 @{
